@@ -1,0 +1,64 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="serial.Desktop.MainWindow"
+        Title="Serial Monitor"
+        Width="950"
+        Height="600"
+        MinWidth="950"
+        MinHeight="450"
+        WindowStartupLocation="CenterScreen">
+
+    <StackPanel Margin="20" Spacing="12">
+        <TextBlock Text="Serial Monitor"
+                   FontSize="24"
+                   FontWeight="Bold" />
+
+        <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBlock Text="Port:"
+                       VerticalAlignment="Center" />
+
+            <ComboBox Name="PortComboBox"
+                      Width="260" />
+
+            <TextBlock Text="Baud:"
+                       VerticalAlignment="Center" />
+
+            <ComboBox Name="BaudComboBox"
+                      Width="120" />
+
+            <TextBlock Text="Ending:"
+                    VerticalAlignment="Center" />
+
+            <ComboBox Name="LineEndingComboBox"
+                    Width="100" />
+
+            <Button Name="RefreshButton"
+                    Content="Refresh" />
+
+            <Button Name="ConnectButton"
+                    Content="Connect" />
+        </StackPanel>
+
+        <TextBox Name="OutputTextBox"
+                 AcceptsReturn="True"
+                 IsReadOnly="True"
+                 Height="400"
+                 TextWrapping="NoWrap"
+                 FontFamily="Menlo, Consolas, monospace" />
+
+        <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBox Name="CommandTextBox"
+                     Width="700"
+                     PlaceholderText="Type command..." />
+
+            <Button Name="SendButton"
+                    Content="Send"
+                    Width="80"
+                    IsEnabled="False" />
+
+            <Button Name="ClearButton"
+                    Content="Clear"
+                    Width="80" />
+        </StackPanel>
+    </StackPanel>
+</Window>

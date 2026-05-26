@@ -1,0 +1,31 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="serial.Desktop.AboutWindow"
+        Title="About Serial Monitor"
+        Width="420"
+        Height="260"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+
+    <StackPanel Margin="24" Spacing="14">
+        <TextBlock Text="Serial Monitor"
+                   FontSize="28"
+                   FontWeight="Bold" />
+
+        <TextBlock Text="Version 1.0"
+                   FontSize="14" />
+
+        <TextBlock Text="A simple UART serial monitor for STM32 development."
+                   TextWrapping="Wrap"
+                   FontSize="14" />
+
+        <TextBlock Text="Built with C# and Avalonia."
+                   TextWrapping="Wrap"
+                   FontSize="14" />
+
+        <Button Content="Close"
+                Width="90"
+                HorizontalAlignment="Right"
+                Click="Close_OnClick" />
+    </StackPanel>
+</Window>
