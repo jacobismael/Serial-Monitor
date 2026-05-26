@@ -8,6 +8,8 @@ using Avalonia.Input;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using serial.Core;
+using Avalonia.Controls.Documents;
+using Avalonia.Media;
 
 namespace serial.Desktop;
 
@@ -16,6 +18,9 @@ public partial class MainWindow : Window
     private SerialMonitor? _monitor;
     private readonly List<LogEntry> _logEntries = [];
     private bool _timestampsEnabled;
+
+    private string? _portName;
+    private int? _baudRate;
 
     public MainWindow()
     {
@@ -70,8 +75,8 @@ public partial class MainWindow : Window
     {
         try
         {
-            string? portName = PortComboBox.SelectedItem as string;
-            if (string.IsNullOrWhiteSpace(portName))
+            _portName = PortComboBox.SelectedItem as string;
+            if (string.IsNullOrWhiteSpace(_portName))
             {
                 AppendOutput("No port selected.\n");
                 return;
@@ -83,7 +88,8 @@ public partial class MainWindow : Window
                 return;
             }
 
-            _monitor = new SerialMonitor(portName, baudRate);
+            _baudRate = baudRate;
+            _monitor = new SerialMonitor(_portName, baudRate);
             _monitor.DataReceived += data =>
             {
                 DateTime receivedAt = DateTime.Now;
@@ -97,17 +103,17 @@ public partial class MainWindow : Window
                 DateTime receivedAt = DateTime.Now;
                 Dispatcher.UIThread.Post(() =>
                 {
-                    AppendOutput($"Serial error: {ex.Message}\n", timestamp: receivedAt);
+                    AppendErrorOutput("Serial error", ex.Message, receivedAt);
                 });
             };
             _monitor.Open();
 
-            AppendOutput($"Connected to {portName} at {baudRate} baud.\n");
+            AppendStatusOutput("Connected", $"to {_portName} at {baudRate} baud.", Brushes.LimeGreen);
             SetConnectionUiState(isConnected: true);
         }
         catch (Exception ex)
         {
-            AppendOutput($"Connect failed: {ex.Message}\n");
+            AppendErrorOutput("Connect failed", ex.Message);
         }
     }
 
@@ -139,7 +145,7 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            AppendOutput($"Send failed: {ex.Message}\n");
+            AppendErrorOutput("Send failed", ex.Message);
         }
     }
 
@@ -148,8 +154,7 @@ public partial class MainWindow : Window
         _monitor?.Dispose();
         _monitor = null;
 
-        AppendOutput("Disconnected.\n");
-
+        AppendStatusOutput("Disconnected", $"from {_portName}.", Brushes.Cyan);
         SetConnectionUiState(isConnected: false);
     }
 
@@ -195,12 +200,26 @@ public partial class MainWindow : Window
 
     private static string FormatEntry(LogEntry entry, bool showTimestamp)
     {
+        string text = GetEntryText(entry);
+
         if (!showTimestamp || !entry.AllowTimestamp)
         {
-            return entry.Text;
+            return text;
         }
 
-        return AddTimestamps(entry.Text, entry.Timestamp);
+        return AddTimestamps(text, entry.Timestamp);
+    }
+
+    private static string GetEntryText(LogEntry entry)
+    {
+        StringBuilder builder = new();
+
+        foreach (LogSegment segment in entry.Segments)
+        {
+            builder.Append(segment.Text);
+        }
+
+        return builder.ToString();
     }
 
     private string BuildLogText(bool showTimestamps)
@@ -217,22 +236,102 @@ public partial class MainWindow : Window
 
     private void RenderOutput()
     {
-        OutputTextBox.Text = BuildLogText(_timestampsEnabled);
-        OutputTextBox.CaretIndex = OutputTextBox.Text.Length;
+        InlineCollection outputInlines = GetOutputInlines();
+        outputInlines.Clear();
+
+        foreach (LogEntry entry in _logEntries)
+        {
+            AddEntryRuns(entry);
+        }
+
+        OutputScrollViewer.ScrollToEnd();
     }
 
-    private void AppendOutput(string text, bool allowTimestamp = true, DateTime? timestamp = null)
+    private void AppendOutput(
+        string text,
+        IBrush? foreground = null,
+        bool bold = false,
+        bool allowTimestamp = true,
+        DateTime? timestamp = null)
     {
-        _logEntries.Add(new LogEntry(text, timestamp ?? DateTime.Now, allowTimestamp));
-        OutputTextBox.Text ??= "";
-        OutputTextBox.Text += FormatEntry(_logEntries[^1], _timestampsEnabled);
-        OutputTextBox.CaretIndex = OutputTextBox.Text.Length;
+        LogEntry entry = new(
+            [new LogSegment(text, foreground, bold)],
+            timestamp ?? DateTime.Now,
+            allowTimestamp);
+
+        _logEntries.Add(entry);
+        AddEntryRuns(entry);
+        OutputScrollViewer.ScrollToEnd();
+    }
+
+    private void AppendErrorOutput(string label, string message, DateTime? timestamp = null)
+    {
+        AppendOutputSegments(
+            [
+                new LogSegment($"{label}: ", Brushes.Red, true),
+                new LogSegment(message + "\n", null, false)
+            ],
+            timestamp: timestamp);
+    }
+
+    private void AppendStatusOutput(string label, string message, IBrush foreground)
+    {
+        string separator = string.IsNullOrWhiteSpace(message) ? "" : " ";
+        AppendOutputSegments(
+            [
+                new LogSegment(label, foreground, true),
+                new LogSegment(separator + message + "\n", null, false)
+            ]);
+    }
+
+    private void AppendOutputSegments(
+        IReadOnlyList<LogSegment> segments,
+        bool allowTimestamp = true,
+        DateTime? timestamp = null)
+    {
+        LogEntry entry = new(
+            segments,
+            timestamp ?? DateTime.Now,
+            allowTimestamp);
+
+        _logEntries.Add(entry);
+        AddEntryRuns(entry);
+        OutputScrollViewer.ScrollToEnd();
+    }
+
+    private void AddEntryRuns(LogEntry entry)
+    {
+        if (_timestampsEnabled && entry.AllowTimestamp && !string.IsNullOrEmpty(GetEntryText(entry)))
+        {
+            GetOutputInlines().Add(new Run
+            {
+                Text = $"[{entry.Timestamp:HH:mm:ss}] ",
+                Foreground = OutputTextBlock.Foreground
+            });
+        }
+
+        foreach (LogSegment segment in entry.Segments)
+        {
+            Run run = new()
+            {
+                Text = segment.Text,
+                Foreground = segment.Foreground ?? OutputTextBlock.Foreground,
+                FontWeight = segment.Bold ? FontWeight.Bold : FontWeight.Normal
+            };
+
+            GetOutputInlines().Add(run);
+        }
     }
 
     private void ClearOutput()
     {
         _logEntries.Clear();
-        OutputTextBox.Text = "";
+        GetOutputInlines().Clear();
+    }
+
+    private InlineCollection GetOutputInlines()
+    {
+        return OutputTextBlock.Inlines ??= new InlineCollection();
     }
 
     protected override void OnClosed(EventArgs e)
@@ -335,7 +434,7 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            AppendOutput($"Save failed: {ex.Message}\n");
+            AppendErrorOutput("Save failed", ex.Message);
         }
     }
 
@@ -349,5 +448,13 @@ public partial class MainWindow : Window
         return _timestampsEnabled;
     }
 
-    private sealed record LogEntry(string Text, DateTime Timestamp, bool AllowTimestamp);
+    private sealed record LogEntry(
+        IReadOnlyList<LogSegment> Segments,
+        DateTime Timestamp,
+        bool AllowTimestamp);
+
+    private sealed record LogSegment(
+        string Text,
+        IBrush? Foreground,
+        bool Bold);
 }

@@ -11,8 +11,8 @@ A simple C# / Avalonia UART serial monitor for macOS.
 - Save serial output to a log file
 - Toggle timestamps
 
-## Build
+## Run
 
 ```bash
-dotnet build
+dotnet run --project src/serial.Desktop
 ```
