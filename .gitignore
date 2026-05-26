@@ -55,3 +55,11 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+
+*.dmg
+dist/
+publish/
+.DS_Store
+package-mac.sh
+*.icns
+*.iconset
