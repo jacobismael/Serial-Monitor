@@ -1,0 +1,79 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="serial.Desktop.SessionControl">
+    <Grid Margin="20"
+          RowDefinitions="Auto,Auto,*,Auto,Auto"
+          RowSpacing="12">
+        <TextBlock Text="Serial Monitor"
+                   Grid.Row="0"
+                   FontSize="24"
+                   FontWeight="Bold" />
+
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8">
+            <TextBlock Text="Port:"
+                       VerticalAlignment="Center" />
+
+            <ComboBox Name="PortComboBox"
+                      Width="260" />
+
+            <TextBlock Text="Baud:"
+                       VerticalAlignment="Center" />
+
+            <ComboBox Name="BaudComboBox"
+                      Width="120" />
+
+            <TextBlock Text="Ending:"
+                    VerticalAlignment="Center" />
+
+            <ComboBox Name="LineEndingComboBox"
+                    Width="100" />
+
+            <Button Name="RefreshButton"
+                    Content="Refresh" />
+
+            <Button Name="ConnectButton"
+                    Content="Connect" />
+        </StackPanel>
+
+        <Border Grid.Row="2"
+                BorderBrush="Gray"
+                BorderThickness="1"
+                Background="{DynamicResource TextControlBackground}"
+                CornerRadius="4">
+            <ScrollViewer Name="OutputScrollViewer"
+                        VerticalScrollBarVisibility="Auto"
+                        HorizontalScrollBarVisibility="Disabled">
+                <SelectableTextBlock Name="OutputTextBlock"
+                        HorizontalAlignment="Stretch"
+                        VerticalAlignment="Stretch"
+                        LineHeight="16"
+                        Foreground="{DynamicResource TextControlForeground}"
+                        TextWrapping="Wrap"
+                        Margin="8" />
+            </ScrollViewer>
+        </Border>
+
+        <WrapPanel Name="MacroButtonsPanel"
+                   Grid.Row="3"
+                   Orientation="Horizontal" />
+
+        <Grid Grid.Row="4"
+              ColumnDefinitions="*,Auto,Auto"
+              ColumnSpacing="8">
+            <TextBox Name="CommandTextBox"
+                     Grid.Column="0"
+                     PlaceholderText="Type command..." />
+
+            <Button Name="SendButton"
+                    Grid.Column="1"
+                    Content="Send"
+                    Width="80"
+                    IsEnabled="False" />
+
+            <Button Name="ClearButton"
+                    Grid.Column="2"
+                    Content="Clear"
+                    Width="80" />
+        </Grid>
+    </Grid>
+</UserControl>

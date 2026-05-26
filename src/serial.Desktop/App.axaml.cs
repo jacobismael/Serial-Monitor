@@ -81,12 +81,17 @@ public partial class App : Application
             Header = "New Window",
             Gesture = KeyGesture.Parse("Meta+N")
         };
+        NativeMenuItem newTabItem = new()
+        {
+            Header = "New Tab",
+            Gesture = KeyGesture.Parse("Meta+T")
+        };
         NativeMenuItem toggleTimeItem = new()
         {
             Header = "Show Timestamps",
             ToggleType = MenuItemToggleType.CheckBox,
             IsChecked = false,
-            Gesture = KeyGesture.Parse("Meta+T")
+            Gesture = KeyGesture.Parse("Ctrl+T")
         };
         NativeMenuItem findItem = new()
         {
@@ -100,6 +105,10 @@ public partial class App : Application
         newWindowItem.Click += (_, _) =>
         {
             CreateMainWindow().Show();
+        };
+        newTabItem.Click += (_, _) =>
+        {
+            mainWindow.AddTab();
         };
         findItem.Click += async (_, _) =>
         {
@@ -116,7 +125,7 @@ public partial class App : Application
         };
         NativeMenu fileMenu = new()
         {
-            Items = { newWindowItem, saveLogItem }
+            Items = { newWindowItem, newTabItem, saveLogItem }
         };
         NativeMenu editMenu = new()
         {
