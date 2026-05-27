@@ -2,7 +2,8 @@
 
 A serial monitor, plotter, and logic analyzer for macOS.
 
-<img width="1018" height="696" alt="Screenshot 2026-05-26 at 9 41 39 AM" src="https://github.com/user-attachments/assets/b6d6b47f-580e-489d-b3e3-d32df1323d11" />
+<img width="1606" height="1162" alt="Screenshot 2026-05-26 at 10 31 04 PM" src="https://github.com/user-attachments/assets/2016cab6-b59f-4c7f-b842-af58cbb7ec71" />
+
 
 ## Features
 
