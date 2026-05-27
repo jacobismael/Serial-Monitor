@@ -1,9 +1,54 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="serial.Desktop.App"
-             Name="logicom">
+             Name="Logicom">
 
     <Application.Styles>
         <FluentTheme />
+        <Style Selector="Window">
+            <Setter Property="Background" Value="#020403" />
+            <Setter Property="Foreground" Value="#E8E8E8" />
+            <Setter Property="FontFamily" Value="Menlo, Consolas, monospace" />
+        </Style>
+        <Style Selector="Button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="#F1F1F1" />
+            <Setter Property="BorderBrush" Value="#9A9A9A" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="2" />
+            <Setter Property="Padding" Value="12,7" />
+        </Style>
+        <Style Selector="Button:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#FFFFFF" />
+            <Setter Property="TextElement.Foreground" Value="#020403" />
+        </Style>
+        <Style Selector="Button:pointerover">
+            <Setter Property="Foreground" Value="#020403" />
+            <Setter Property="BorderBrush" Value="#FFFFFF" />
+        </Style>
+        <Style Selector="Button:disabled">
+            <Setter Property="Foreground" Value="#6F6F6F" />
+            <Setter Property="BorderBrush" Value="#4A4A4A" />
+        </Style>
+        <Style Selector="TextBox">
+            <Setter Property="Background" Value="#030504" />
+            <Setter Property="Foreground" Value="#E8E8E8" />
+            <Setter Property="BorderBrush" Value="#9A9A9A" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="2" />
+        </Style>
+        <Style Selector="ComboBox">
+            <Setter Property="Background" Value="#030504" />
+            <Setter Property="Foreground" Value="#E8E8E8" />
+            <Setter Property="BorderBrush" Value="#9A9A9A" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="2" />
+        </Style>
+        <Style Selector="TabControl">
+            <Setter Property="Background" Value="#020403" />
+        </Style>
+        <Style Selector="TabItem">
+            <Setter Property="Foreground" Value="#E8E8E8" />
+        </Style>
     </Application.Styles>
 </Application>

@@ -33,7 +33,7 @@ public partial class App : Application
         _mainWindow = mainWindow;
         mainWindow.NewWindowRequested += () => CreateMainWindow().Show();
         mainWindow.Activated += (_, _) => _mainWindow = mainWindow;
-        BuildWindowMenu(mainWindow);
+        AttachWindowMenu(mainWindow, mainWindow);
         return mainWindow;
     }
 
@@ -46,18 +46,23 @@ public partial class App : Application
         };
         NativeMenuItem aboutItem = new()
         {
-            Header = "About logicom..."
+            Header = "About Logicom..."
         };
         settingsItem.Click += Settings_OnClick;
         aboutItem.Click += About_OnClick;
         NativeMenu appMenu = new()
         {
-            Items = { settingsItem, aboutItem }
+            Items = { aboutItem, settingsItem }
         };
         NativeMenu.SetMenu(this, appMenu);
     }
 
-    private void BuildWindowMenu(MainWindow mainWindow)
+    public void AttachWindowMenu(Window window, MainWindow mainWindow)
+    {
+        BuildWindowMenu(window, mainWindow);
+    }
+
+    private void BuildWindowMenu(Window window, MainWindow mainWindow)
     {
         NativeMenuItem fileItem = new()
         {
@@ -76,22 +81,39 @@ public partial class App : Application
             Header = "Save Log...",
             Gesture = KeyGesture.Parse("Meta+S")
         };
+        NativeMenuItem copySerialMonitorItem = new()
+        {
+            Header = "Copy Serial Monitor",
+            Gesture = KeyGesture.Parse("Meta+Shift+C")
+        };
         NativeMenuItem newWindowItem = new()
         {
             Header = "New Window",
             Gesture = KeyGesture.Parse("Meta+N")
         };
-        NativeMenuItem newTabItem = new()
-        {
-            Header = "New Tab",
-            Gesture = KeyGesture.Parse("Meta+T")
-        };
         NativeMenuItem toggleTimeItem = new()
         {
             Header = "Show Timestamps",
             ToggleType = MenuItemToggleType.CheckBox,
-            IsChecked = false,
+            IsChecked = mainWindow.TimestampsEnabled,
             Gesture = KeyGesture.Parse("Ctrl+T")
+        };
+        NativeMenuItem toggleSignalViewerItem = new()
+        {
+            Header = "Show Logic Analyzer",
+            ToggleType = MenuItemToggleType.CheckBox,
+            IsChecked = mainWindow.IsSignalViewerVisible,
+            Gesture = KeyGesture.Parse("Meta+Shift+V")
+        };
+        NativeMenuItem showStatusPanelItem = new()
+        {
+            Header = "Show Status Panel"
+        };
+        NativeMenuItem showSerialPlotterItem = new()
+        {
+            Header = "Show Serial Plotter",
+            ToggleType = MenuItemToggleType.CheckBox,
+            IsChecked = mainWindow.IsSerialPlotterVisible
         };
         NativeMenuItem findItem = new()
         {
@@ -102,13 +124,13 @@ public partial class App : Application
         {
             await mainWindow.SaveLogAsync();
         };
+        copySerialMonitorItem.Click += async (_, _) =>
+        {
+            await mainWindow.CopySerialMonitorAsync();
+        };
         newWindowItem.Click += (_, _) =>
         {
             CreateMainWindow().Show();
-        };
-        newTabItem.Click += (_, _) =>
-        {
-            mainWindow.AddTab();
         };
         findItem.Click += async (_, _) =>
         {
@@ -119,21 +141,43 @@ public partial class App : Application
             bool enabled = mainWindow.ToggleTimestamps();
             toggleTimeItem.IsChecked = enabled;
         };
+        toggleSignalViewerItem.Click += (_, _) =>
+        {
+            bool enabled = mainWindow.ToggleSignalViewer();
+            toggleSignalViewerItem.IsChecked = enabled;
+        };
+        showStatusPanelItem.Click += (_, _) =>
+        {
+            mainWindow.ShowStatusPanel();
+        };
+        showSerialPlotterItem.Click += (_, _) =>
+        {
+            mainWindow.ShowSerialPlotter();
+            showSerialPlotterItem.IsChecked = mainWindow.IsSerialPlotterVisible;
+        };
         mainWindow.TimestampsToggled += enabled =>
         {
             toggleTimeItem.IsChecked = enabled;
         };
+        mainWindow.SignalViewerToggled += enabled =>
+        {
+            toggleSignalViewerItem.IsChecked = enabled;
+        };
+        mainWindow.SerialPlotterToggled += visible =>
+        {
+            showSerialPlotterItem.IsChecked = visible;
+        };
         NativeMenu fileMenu = new()
         {
-            Items = { newWindowItem, newTabItem, saveLogItem }
+            Items = { newWindowItem, saveLogItem }
         };
         NativeMenu editMenu = new()
         {
-            Items = { findItem }
+            Items = { findItem, copySerialMonitorItem }
         };
         NativeMenu viewMenu = new()
         {
-            Items = { toggleTimeItem }
+            Items = { toggleTimeItem, toggleSignalViewerItem, showStatusPanelItem, showSerialPlotterItem }
         };
         fileItem.Menu = fileMenu;
         editItem.Menu = editMenu;
@@ -146,7 +190,7 @@ public partial class App : Application
                 viewItem
             }
         };
-        NativeMenu.SetMenu(mainWindow, menuBar);
+        NativeMenu.SetMenu(window, menuBar);
     }
 
     private void About_OnClick(object? sender, EventArgs e)
@@ -161,6 +205,10 @@ public partial class App : Application
         {
             _aboutWindow = null;
         };
+        if (_mainWindow != null)
+        {
+            AttachWindowMenu(_aboutWindow, _mainWindow);
+        }
         _aboutWindow.Show();
     }
 

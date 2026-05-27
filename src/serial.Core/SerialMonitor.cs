@@ -6,10 +6,24 @@ using System.Linq;
 
 namespace serial.Core;
 
-public sealed class SerialMonitor(string port, int baudRate) : IDisposable
+public sealed record SerialPortSettings(
+    int DataBits,
+    Parity Parity,
+    StopBits StopBits,
+    Handshake Handshake)
 {
-    private readonly string _port = port;
-    private readonly int _baudRate = baudRate;
+    public static SerialPortSettings Default { get; } = new(
+        8,
+        Parity.None,
+        StopBits.One,
+        Handshake.None);
+}
+
+public sealed class SerialMonitor : IDisposable
+{
+    private readonly string _port;
+    private readonly int _baudRate;
+    private readonly SerialPortSettings _settings;
     private readonly StringBuilder _rxBuffer = new();
     private readonly System.Threading.Lock _lock = new();
 
@@ -22,17 +36,20 @@ public sealed class SerialMonitor(string port, int baudRate) : IDisposable
 
     public bool IsOpen => _serial?.IsOpen == true;
 
+    public SerialMonitor(
+        string port,
+        int baudRate,
+        SerialPortSettings? settings = null)
+    {
+        _port = port;
+        _baudRate = baudRate;
+        _settings = settings ?? SerialPortSettings.Default;
+    }
+
     public static string[] GetAvailablePorts()
     {
         return [
             .. SerialPort.GetPortNames()
-            .Where(port =>
-                port.StartsWith("/dev/cu.usb") ||
-                port.StartsWith("/dev/cu.SLAB") ||
-                port.StartsWith("/dev/cu.wch") ||
-                port.Contains("usb", StringComparison.OrdinalIgnoreCase) ||
-                port.Contains("serial", StringComparison.OrdinalIgnoreCase) ||
-                port.Contains("modem", StringComparison.OrdinalIgnoreCase))
             .OrderBy(port => port)
         ];
     }
@@ -47,10 +64,10 @@ public sealed class SerialMonitor(string port, int baudRate) : IDisposable
         Console.WriteLine($"Opening port {_port}");
         _serial = new SerialPort(_port, _baudRate)
         {
-            Parity = Parity.None,
-            DataBits = 8,
-            StopBits = StopBits.One,
-            Handshake = Handshake.None,
+            Parity = _settings.Parity,
+            DataBits = _settings.DataBits,
+            StopBits = _settings.StopBits,
+            Handshake = _settings.Handshake,
             Encoding = Encoding.UTF8,
             NewLine = "\r\n",
             ReadTimeout = 500,

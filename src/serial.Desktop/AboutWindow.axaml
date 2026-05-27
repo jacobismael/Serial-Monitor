@@ -1,31 +1,52 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="serial.Desktop.AboutWindow"
-        Title="About logicom"
-        Width="420"
-        Height="260"
+        Title="About Logicom"
+        Width="760"
+        Height="300"
         WindowStartupLocation="CenterOwner"
         CanResize="False">
 
-    <StackPanel Margin="24" Spacing="14">
-        <TextBlock Text="logicom"
-                   FontSize="28"
-                   FontWeight="Bold" />
+    <Grid Margin="24"
+          ColumnDefinitions="252,*"
+          RowDefinitions="*,Auto"
+          ColumnSpacing="22"
+          RowSpacing="18">
+        <Image Grid.RowSpan="2"
+               Grid.Column="0"
+               Source="avares://serial.Desktop/Assets/AppIcon.png"
+               Width="252"
+               Height="252"
+               Stretch="Uniform"
+               HorizontalAlignment="Left"
+               VerticalAlignment="Top" />
 
-        <TextBlock Text="Version 1.0"
-                   FontSize="14" />
+        <StackPanel Grid.Row="0"
+                    Grid.Column="1"
+                    Spacing="14">
+            <TextBlock Text="█   █▀█ █▀▀ █ █▀▀ █▀█ █▀▄▀█&#x0a;█▄▄ █▄█ █▄█ █ █▄▄ █▄█ █ ▀ █"
+                       FontFamily="Menlo, Consolas, monospace"
+                       FontSize="17"
+                       FontWeight="Bold"
+                       LineHeight="19" />
 
-        <TextBlock Text="A simple UART serial monitor for STM32 development."
-                   TextWrapping="Wrap"
-                   FontSize="14" />
+            <TextBlock Text="Version 0.3.1"
+                       FontSize="14" />
 
-        <TextBlock Text="Built with C# and Avalonia."
-                   TextWrapping="Wrap"
-                   FontSize="14" />
+            <TextBlock Text="UART logic analyzer, serial plotter, and monitor."
+                       TextWrapping="Wrap"
+                       FontSize="14" />
 
-        <Button Content="Close"
+            <TextBlock Text="Copyright © 2026"
+                       TextWrapping="Wrap"
+                       FontSize="14" />
+        </StackPanel>
+
+        <Button Grid.Row="1"
+                Grid.Column="1"
+                Content="Close"
                 Width="90"
                 HorizontalAlignment="Right"
                 Click="Close_OnClick" />
-    </StackPanel>
+    </Grid>
 </Window>

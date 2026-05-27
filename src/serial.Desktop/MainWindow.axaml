@@ -3,35 +3,12 @@
         xmlns:local="clr-namespace:serial.Desktop"
         x:Class="serial.Desktop.MainWindow"
         x:DataType="local:MainWindow"
-        Title="logicom"
+        Title="Logicom"
         Width="950"
         Height="600"
-        MinWidth="950"
+        MinWidth="1000"
         MinHeight="450"
         WindowStartupLocation="CenterScreen">
 
-    <TabControl x:Name="MainTabControl" ItemsSource="{Binding Tabs}">
-        <TabControl.ItemTemplate>
-            <DataTemplate x:DataType="local:SessionControl">
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <TextBlock Text="{Binding Header}" VerticalAlignment="Center" />
-                    <Button Content="✕"
-                            Command="{Binding $parent[local:MainWindow].CloseTab}"
-                            CommandParameter="{Binding}"
-                            Padding="2"
-                            FontSize="10"
-                            Width="18"
-                            Height="18"
-                            VerticalAlignment="Center"
-                            BorderThickness="0"
-                            Background="Transparent"/>
-                </StackPanel>
-            </DataTemplate>
-        </TabControl.ItemTemplate>
-        <TabControl.ContentTemplate>
-            <DataTemplate>
-                <ContentPresenter Content="{Binding}" />
-            </DataTemplate>
-        </TabControl.ContentTemplate>
-    </TabControl>
+    <local:SessionControl x:Name="MainSessionControl" />
 </Window>

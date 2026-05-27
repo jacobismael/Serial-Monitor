@@ -1,79 +1,217 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="serial.Desktop.SessionControl">
-    <Grid Margin="20"
+    <Grid Name="SessionRootGrid"
+          Margin="24,18,24,24"
           RowDefinitions="Auto,Auto,*,Auto,Auto"
-          RowSpacing="12">
-        <TextBlock Text="logicom"
+          RowSpacing="16"
+          Background="#020403">
+        <TextBlock Text="█   █▀█ █▀▀ █ █▀▀ █▀█ █▀▄▀█&#x0a;█▄▄ █▄█ █▄█ █ █▄▄ █▄█ █ ▀ █"
                    Grid.Row="0"
-                   FontSize="24"
-                   FontWeight="Bold" />
+                   FontFamily="Menlo, Consolas, monospace"
+                   Foreground="#F3F3F3"
+                   FontSize="22"
+                   FontWeight="Bold"
+                   LineHeight="24" />
 
         <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8">
             <TextBlock Text="Port:"
+                       Foreground="#E8E8E8"
                        VerticalAlignment="Center" />
 
             <ComboBox Name="PortComboBox"
-                      Width="260" />
+                      Width="260"
+                      MinHeight="34" />
 
             <TextBlock Text="Baud:"
+                       Foreground="#E8E8E8"
                        VerticalAlignment="Center" />
 
             <ComboBox Name="BaudComboBox"
-                      Width="120" />
+                      Width="120"
+                      MinHeight="34" />
 
             <TextBlock Text="Ending:"
-                    VerticalAlignment="Center" />
+                       Foreground="#E8E8E8"
+                       VerticalAlignment="Center" />
 
             <ComboBox Name="LineEndingComboBox"
-                    Width="100" />
+                      Width="128"
+                      MinHeight="34" />
 
             <Button Name="RefreshButton"
-                    Content="Refresh" />
+                    Content="Refresh"
+                    MinWidth="96" />
 
             <Button Name="ConnectButton"
-                    Content="Connect" />
+                    Content="Connect"
+                    MinWidth="120" />
         </StackPanel>
 
-        <Border Grid.Row="2"
-                BorderBrush="Gray"
-                BorderThickness="1"
-                Background="{DynamicResource TextControlBackground}"
-                CornerRadius="4">
-            <ScrollViewer Name="OutputScrollViewer"
-                        VerticalScrollBarVisibility="Auto"
-                        HorizontalScrollBarVisibility="Disabled">
-                <SelectableTextBlock Name="OutputTextBlock"
-                        HorizontalAlignment="Stretch"
-                        VerticalAlignment="Stretch"
-                        LineHeight="16"
-                        Foreground="{DynamicResource TextControlForeground}"
-                        TextWrapping="Wrap"
-                        Margin="8" />
-            </ScrollViewer>
-        </Border>
+        <Grid Name="MainContentGrid"
+              Grid.Row="2"
+              ColumnDefinitions="*,6,360"
+              ColumnSpacing="0">
+            <Border Grid.Column="0"
+                    BorderBrush="#9A9A9A"
+                    BorderThickness="1"
+                    Background="#020403"
+                    CornerRadius="3">
+                <Grid RowDefinitions="Auto,*">
+                    <TextBlock Grid.Row="0"
+                               Margin="12,8,12,4"
+                               Text="SERIAL MONITOR -----------------------------------------------"
+                               Foreground="#E8E8E8"
+                               FontWeight="Bold" />
+                    <ScrollViewer Name="OutputScrollViewer"
+                                  Grid.Row="1"
+                                  VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <SelectableTextBlock Name="OutputTextBlock"
+                                             HorizontalAlignment="Stretch"
+                                             VerticalAlignment="Stretch"
+                                             FontSize="13"
+                                             LineHeight="18"
+                                             Foreground="#E8E8E8"
+                                             TextWrapping="Wrap"
+                                             Margin="12,4,12,12" />
+                    </ScrollViewer>
+                </Grid>
+            </Border>
 
-        <WrapPanel Name="MacroButtonsPanel"
-                   Grid.Row="3"
-                   Orientation="Horizontal" />
+            <GridSplitter Name="SignalViewerSplitter"
+                          Grid.Column="1"
+                          Width="6"
+                          ResizeDirection="Columns"
+                          ResizeBehavior="PreviousAndNext"
+                          HorizontalAlignment="Stretch"
+                          VerticalAlignment="Stretch"
+                          Background="Transparent" />
+
+            <Grid Name="SignalViewerPanel"
+                  Grid.Column="2"
+                  RowDefinitions="*"
+                  Margin="10,0,0,0"
+                  HorizontalAlignment="Stretch"
+                  VerticalAlignment="Stretch">
+                <Border Grid.Row="0"
+                        BorderBrush="#9A9A9A"
+                        BorderThickness="1"
+                        Background="#020403"
+                        CornerRadius="3"
+                        Padding="12">
+                    <Grid RowDefinitions="Auto,*,Auto">
+                        <TextBlock Grid.Row="0"
+                                   Text="LOGIC ANALYZER --------------- Time/Div: 2 ms"
+                                   Foreground="#E8E8E8"
+                                   FontWeight="Bold" />
+                        <ScrollViewer Name="WaveformScrollViewer"
+                                      Grid.Row="1"
+                                      Margin="0,10,0,0"
+                                      HorizontalScrollBarVisibility="Auto"
+                                      VerticalScrollBarVisibility="Auto">
+                            <Grid Name="WaveformRowsGrid"
+                                  MinWidth="720" />
+                        </ScrollViewer>
+                        <TextBlock Name="LogicAnalyzerHoverTextBlock"
+                                   Grid.Row="2"
+                                   Margin="0,8,0,0"
+                                   Text="Logic level: -"
+                                   Foreground="#E8E8E8" />
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
+
+        <StackPanel Name="FooterPanel"
+                    Grid.Row="3"
+                    Spacing="16">
+            <Border Name="StatusPanel"
+                    IsVisible="False"
+                    BorderBrush="#9A9A9A"
+                    BorderThickness="1"
+                    Background="#020403"
+                    CornerRadius="3"
+                    Padding="12">
+                <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+                      ColumnDefinitions="128,16,*"
+                      RowSpacing="5">
+                    <TextBlock Grid.Row="0" Grid.ColumnSpan="3" Text="STATUS ---------------------------------" Foreground="#E8E8E8" FontWeight="Bold" />
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Connection" />
+                    <TextBlock Grid.Row="1" Grid.Column="1" Text=":" />
+                    <TextBlock Grid.Row="1" Grid.Column="2" Name="StatusConnectionTextBlock" Text="Disconnected" />
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Port" />
+                    <TextBlock Grid.Row="2" Grid.Column="1" Text=":" />
+                    <TextBlock Grid.Row="2" Grid.Column="2" Name="StatusPortTextBlock" Text="-" />
+                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Baud Rate" />
+                    <TextBlock Grid.Row="3" Grid.Column="1" Text=":" />
+                    <TextBlock Grid.Row="3" Grid.Column="2" Name="StatusBaudTextBlock" Text="-" />
+                    <TextBlock Grid.Row="4" Grid.Column="0" Text="Data Bits" />
+                    <TextBlock Grid.Row="4" Grid.Column="1" Text=":" />
+                    <TextBlock Grid.Row="4" Grid.Column="2" Name="StatusDataBitsTextBlock" Text="8" />
+                    <TextBlock Grid.Row="5" Grid.Column="0" Text="Parity" />
+                    <TextBlock Grid.Row="5" Grid.Column="1" Text=":" />
+                    <TextBlock Grid.Row="5" Grid.Column="2" Name="StatusParityTextBlock" Text="None" />
+                    <TextBlock Grid.Row="6" Grid.Column="0" Text="Stop Bits" />
+                    <TextBlock Grid.Row="6" Grid.Column="1" Text=":" />
+                    <TextBlock Grid.Row="6" Grid.Column="2" Name="StatusStopBitsTextBlock" Text="1" />
+                    <TextBlock Grid.Row="7" Grid.Column="0" Text="Flow Control" />
+                    <TextBlock Grid.Row="7" Grid.Column="1" Text=":" />
+                    <TextBlock Grid.Row="7" Grid.Column="2" Name="StatusFlowControlTextBlock" Text="None" />
+                    <TextBlock Grid.Row="8" Grid.Column="0" Text="Line Ending" />
+                    <TextBlock Grid.Row="8" Grid.Column="1" Text=":" />
+                    <TextBlock Grid.Row="8" Grid.Column="2" Name="StatusLineEndingTextBlock" Text="None" />
+                    <TextBlock Grid.Row="9" Grid.Column="0" Text="MCU Reset" />
+                    <TextBlock Grid.Row="9" Grid.Column="1" Text=":" />
+                    <TextBlock Grid.Row="9" Grid.Column="2" Name="StatusMcuResetTextBlock" Text="-" />
+                    <TextBlock Grid.Row="10" Grid.Column="0" Text="Uptime" />
+                    <TextBlock Grid.Row="10" Grid.Column="1" Text=":" />
+                    <TextBlock Grid.Row="10" Grid.Column="2" Name="StatusUptimeTextBlock" Text="-" />
+                </Grid>
+            </Border>
+
+            <WrapPanel Name="MacroButtonsPanel"
+                       Orientation="Horizontal" />
+        </StackPanel>
 
         <Grid Grid.Row="4"
-              ColumnDefinitions="*,Auto,Auto"
-              ColumnSpacing="8">
-            <TextBox Name="CommandTextBox"
-                     Grid.Column="0"
-                     PlaceholderText="Type command..." />
+              RowDefinitions="Auto,Auto"
+              RowSpacing="8">
+            <Border Name="MacroAutocompletePanel"
+                    Grid.Row="0"
+                    IsVisible="False"
+                    BorderBrush="#9A9A9A"
+                    BorderThickness="1"
+                    Background="#020403"
+                    CornerRadius="3"
+                    Padding="6"
+                    MaxHeight="180"
+                    HorizontalAlignment="Left"
+                    MinWidth="360">
+                <ListBox Name="MacroAutocompleteListBox"
+                         Background="#020403"
+                         Foreground="#E8E8E8" />
+            </Border>
 
-            <Button Name="SendButton"
-                    Grid.Column="1"
-                    Content="Send"
-                    Width="80"
-                    IsEnabled="False" />
+            <Grid Grid.Row="1"
+                  ColumnDefinitions="*,Auto,Auto"
+                  ColumnSpacing="8">
+                <TextBox Name="CommandTextBox"
+                         Grid.Column="0"
+                         MinHeight="36"
+                         PlaceholderText="Type command..." />
 
-            <Button Name="ClearButton"
-                    Grid.Column="2"
-                    Content="Clear"
-                    Width="80" />
+                <Button Name="SendButton"
+                        Grid.Column="1"
+                        Content="Send"
+                        Width="92"
+                        IsEnabled="False" />
+
+                <Button Name="ClearButton"
+                        Grid.Column="2"
+                        Content="Clear"
+                        Width="92" />
+            </Grid>
         </Grid>
     </Grid>
 </UserControl>

@@ -3,7 +3,7 @@
         x:Class="serial.Desktop.SettingsWindow"
         Title="Settings"
         Width="680"
-        Height="420"
+        Height="520"
         MinWidth="520"
         MinHeight="320"
         CanResize="True"
@@ -13,100 +13,216 @@
           RowDefinitions="*,Auto"
           RowSpacing="16">
         <TabControl Grid.Row="0">
-            <TabItem Header="Appearance">
-                <StackPanel Margin="0,12,0,0" Spacing="6">
-                    <TextBlock Text="Font family" />
-                    <TextBox Name="FontFamilyTextBox"
-                             PlaceholderText="Monocraft, Menlo, Consolas, monospace" />
-                </StackPanel>
+            <TabItem Header="General">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="0,12,0,0" Spacing="12">
+                        <Border BorderBrush="#9A9A9A"
+                                BorderThickness="1"
+                                CornerRadius="3"
+                                Padding="12">
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="Appearance"
+                                           FontWeight="Bold" />
+                                <TextBlock Text="Font family" />
+                                <TextBox Name="FontFamilyTextBox"
+                                         PlaceholderText="Monocraft, Menlo, Consolas, monospace" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border BorderBrush="#9A9A9A"
+                                BorderThickness="1"
+                                CornerRadius="3"
+                                Padding="12">
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="Files"
+                                           FontWeight="Bold" />
+                                <TextBlock Text="Default log save location" />
+                                <Grid ColumnDefinitions="*,Auto"
+                                      ColumnSpacing="8">
+                                    <TextBox Name="LogSaveLocationTextBox"
+                                             Grid.Column="0"
+                                             PlaceholderText="/Users/you/Documents" />
+                                    <Button Name="BrowseLogSaveLocationButton"
+                                            Grid.Column="1"
+                                            Content="Browse..."
+                                            Width="96" />
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <Border BorderBrush="#9A9A9A"
+                                BorderThickness="1"
+                                CornerRadius="3"
+                                Padding="12">
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="Startup"
+                                           FontWeight="Bold" />
+                                <TextBlock Text="Startup command" />
+                                <TextBox Name="StartupCommandTextBox"
+                                         PlaceholderText="/path/to/tool --arg" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border BorderBrush="#9A9A9A"
+                                BorderThickness="1"
+                                CornerRadius="3"
+                                Padding="12">
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="Status Panel"
+                                           FontWeight="Bold" />
+                                <Grid ColumnDefinitions="*,*,*,*"
+                                      ColumnSpacing="8">
+                                    <StackPanel Grid.Column="0" Spacing="4">
+                                        <TextBlock Text="Data bits" />
+                                        <ComboBox Name="StatusDataBitsComboBox" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Spacing="4">
+                                        <TextBlock Text="Parity" />
+                                        <ComboBox Name="StatusParityComboBox" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2" Spacing="4">
+                                        <TextBlock Text="Stop bits" />
+                                        <ComboBox Name="StatusStopBitsComboBox" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="3" Spacing="4">
+                                        <TextBlock Text="Flow control" />
+                                        <ComboBox Name="StatusFlowControlComboBox" />
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
             </TabItem>
 
-            <TabItem Header="Files">
-                <StackPanel Margin="0,12,0,0" Spacing="6">
-                    <TextBlock Text="Default log save location" />
-                    <Grid ColumnDefinitions="*,Auto"
-                          ColumnSpacing="8">
-                        <TextBox Name="LogSaveLocationTextBox"
-                                 Grid.Column="0"
-                                 PlaceholderText="/Users/you/Documents" />
-                        <Button Name="BrowseLogSaveLocationButton"
-                                Grid.Column="1"
-                                Content="Browse..."
-                                Width="96" />
-                    </Grid>
+            <TabItem Header="Serial Plotter">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="0,12,0,0" Spacing="12">
+                    <Border BorderBrush="#9A9A9A"
+                            BorderThickness="1"
+                            CornerRadius="3"
+                            Padding="12">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Samples"
+                                       FontWeight="Bold" />
+                            <Grid ColumnDefinitions="*,*"
+                                  ColumnSpacing="8">
+                                <StackPanel Grid.Column="0" Spacing="4">
+                                    <TextBlock Text="Stored samples" />
+                                    <NumericUpDown Name="PlotterMaxSamplesNumericUpDown"
+                                                   Minimum="10"
+                                                   Maximum="10000"
+                                                   Increment="10" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Spacing="4">
+                                    <TextBlock Text="Visible samples" />
+                                    <NumericUpDown Name="PlotterVisibleSamplesNumericUpDown"
+                                                   Minimum="10"
+                                                   Maximum="10000"
+                                                   Increment="10" />
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <Border BorderBrush="#9A9A9A"
+                            BorderThickness="1"
+                            CornerRadius="3"
+                            Padding="12">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Display"
+                                       FontWeight="Bold" />
+                            <Grid ColumnDefinitions="*,Auto"
+                                  ColumnSpacing="8">
+                                <TextBox Name="PlotterLineColorTextBox"
+                                         Grid.Column="0"
+                                         PlaceholderText="#00D4D8" />
+                                <Border Name="PlotterLineColorSwatch"
+                                        Grid.Column="1"
+                                        Width="28"
+                                        Height="28"
+                                        BorderBrush="#9A9A9A"
+                                        BorderThickness="1" />
+                            </Grid>
+                            <CheckBox Name="PlotterAutoScaleCheckBox"
+                                      Content="Auto scale Y axis" />
+                            <Grid ColumnDefinitions="*,*"
+                                  ColumnSpacing="8">
+                                <StackPanel Grid.Column="0" Spacing="4">
+                                    <TextBlock Text="Y min" />
+                                    <NumericUpDown Name="PlotterMinimumValueNumericUpDown"
+                                                   Minimum="-1000000"
+                                                   Maximum="1000000"
+                                                   Increment="1" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Spacing="4">
+                                    <TextBlock Text="Y max" />
+                                    <NumericUpDown Name="PlotterMaximumValueNumericUpDown"
+                                                   Minimum="-1000000"
+                                                   Maximum="1000000"
+                                                   Increment="1" />
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
+                </ScrollViewer>
             </TabItem>
 
             <TabItem Header="Macros">
-                <ScrollViewer Margin="0,12,0,0"
-                              VerticalScrollBarVisibility="Auto">
-                    <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto"
-                          ColumnDefinitions="120,120,*"
-                          RowSpacing="8"
-                          ColumnSpacing="8">
-                        <TextBlock Grid.Row="0"
-                                   Grid.Column="0"
+                <Grid Margin="0,12,0,0"
+                      RowDefinitions="Auto,*,Auto"
+                      RowSpacing="8">
+                    <Grid Grid.Row="0"
+                          ColumnDefinitions="120,92,56,*,92,Auto"
+                          ColumnSpacing="4">
+                        <TextBlock Grid.Column="0"
                                    Text="Name" />
-                        <TextBlock Grid.Row="0"
-                                   Grid.Column="1"
+                        <TextBlock Grid.Column="1"
                                    Text="Type" />
-                        <TextBlock Grid.Row="0"
-                                   Grid.Column="2"
+                        <TextBlock Grid.Column="2"
+                                   Text="Button" />
+                        <TextBlock Grid.Column="3"
                                    Text="Command" />
-
-                        <TextBox Name="Macro1NameTextBox"
-                                 Grid.Row="1"
-                                 Grid.Column="0"
-                                 PlaceholderText="Reset" />
-                        <ComboBox Name="Macro1TypeComboBox"
-                                  Grid.Row="1"
-                                  Grid.Column="1" />
-                        <TextBox Name="Macro1CommandTextBox"
-                                 Grid.Row="1"
-                                 Grid.Column="2"
-                                 PlaceholderText="reset or /path/to/tool --arg" />
-
-                        <TextBox Name="Macro2NameTextBox"
-                                 Grid.Row="2"
-                                 Grid.Column="0" />
-                        <ComboBox Name="Macro2TypeComboBox"
-                                  Grid.Row="2"
-                                  Grid.Column="1" />
-                        <TextBox Name="Macro2CommandTextBox"
-                                 Grid.Row="2"
-                                 Grid.Column="2" />
-
-                        <TextBox Name="Macro3NameTextBox"
-                                 Grid.Row="3"
-                                 Grid.Column="0" />
-                        <ComboBox Name="Macro3TypeComboBox"
-                                  Grid.Row="3"
-                                  Grid.Column="1" />
-                        <TextBox Name="Macro3CommandTextBox"
-                                 Grid.Row="3"
-                                 Grid.Column="2" />
-
-                        <TextBox Name="Macro4NameTextBox"
-                                 Grid.Row="4"
-                                 Grid.Column="0" />
-                        <ComboBox Name="Macro4TypeComboBox"
-                                  Grid.Row="4"
-                                  Grid.Column="1" />
-                        <TextBox Name="Macro4CommandTextBox"
-                                 Grid.Row="4"
-                                 Grid.Column="2" />
-
-                        <TextBox Name="Macro5NameTextBox"
-                                 Grid.Row="5"
-                                 Grid.Column="0" />
-                        <ComboBox Name="Macro5TypeComboBox"
-                                  Grid.Row="5"
-                                  Grid.Column="1" />
-                        <TextBox Name="Macro5CommandTextBox"
-                                 Grid.Row="5"
-                                 Grid.Column="2" />
+                        <TextBlock Grid.Column="4"
+                                   Text="Ending" />
                     </Grid>
-                </ScrollViewer>
+                    <ScrollViewer Grid.Row="1"
+                                  VerticalScrollBarVisibility="Auto">
+                        <StackPanel Name="MacroRowsPanel"
+                                    Spacing="8" />
+                    </ScrollViewer>
+                    <Button Name="AddMacroButton"
+                            Grid.Row="2"
+                            Content="Add Macro"
+                            HorizontalAlignment="Left" />
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Waveform">
+                <Grid Margin="0,12,0,0"
+                      RowDefinitions="Auto,*,Auto"
+                      RowSpacing="8">
+                    <Grid Grid.Row="0"
+                          ColumnDefinitions="120,120,120,Auto"
+                          ColumnSpacing="8">
+                        <TextBlock Grid.Column="0"
+                                   Text="Probe" />
+                        <TextBlock Grid.Column="1"
+                                   Text="Signal" />
+                        <TextBlock Grid.Column="2"
+                                   Text="Color" />
+                    </Grid>
+                    <ScrollViewer Grid.Row="1"
+                                  VerticalScrollBarVisibility="Auto">
+                        <StackPanel Name="ProbeRowsPanel"
+                                    Spacing="8" />
+                    </ScrollViewer>
+                    <Button Name="AddProbeButton"
+                            Grid.Row="2"
+                            Content="Add Probe"
+                            HorizontalAlignment="Left" />
+                </Grid>
             </TabItem>
         </TabControl>
 
