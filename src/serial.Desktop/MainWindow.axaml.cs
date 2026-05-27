@@ -7,6 +7,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
 using serial.Core;
+using Avalonia.VisualTree;
 
 namespace serial.Desktop;
 
@@ -20,7 +21,8 @@ public partial class MainWindow : Window
     public event Action? NewWindowRequested;
     public event Action<bool>? TimestampsToggled;
 
-    public SessionControl? ActiveSessionControl => MainTabControl.SelectedItem as SessionControl;
+    private TabControl _mainTabControl = null!;
+    public SessionControl? ActiveSessionControl => _mainTabControl.SelectedItem as SessionControl;
 
     public string AppFontFamily
     {
@@ -55,12 +57,17 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        DataContext = this;
+
+        _mainTabControl = this.FindControl<TabControl>("MainTabControl")
+            ?? throw new InvalidOperationException("MainTabControl not found.");
+
         _settings = LocalSettings.Load();
         AppFontFamily = _settings.FontFamily;
 
-        MainTabControl.ItemsSource = Tabs;
-        MainTabControl.SelectionChanged += (_, _) =>
+        DataContext = this;
+        _mainTabControl.ItemsSource = Tabs;
+
+        _mainTabControl.SelectionChanged += (_, _) =>
         {
             var active = ActiveSessionControl;
             if (active != null)
@@ -100,7 +107,7 @@ public partial class MainWindow : Window
     {
         var newTab = new SessionControl { Header = "Session " + (Tabs.Count + 1) };
         Tabs.Add(newTab);
-        MainTabControl.SelectedItem = newTab;
+        _mainTabControl.SelectedItem = newTab;
     }
 
     public void CloseTab(object parameter)

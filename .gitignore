@@ -60,6 +60,5 @@ nunit-*.xml
 dist/
 publish/
 .DS_Store
-package-mac.sh
 *.icns
 *.iconset

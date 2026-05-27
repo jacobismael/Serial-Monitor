@@ -10,7 +10,7 @@
         MinHeight="450"
         WindowStartupLocation="CenterScreen">
 
-    <TabControl Name="MainTabControl" ItemsSource="{Binding Tabs}">
+    <TabControl x:Name="MainTabControl" ItemsSource="{Binding Tabs}">
         <TabControl.ItemTemplate>
             <DataTemplate x:DataType="local:SessionControl">
                 <StackPanel Orientation="Horizontal" Spacing="8">
