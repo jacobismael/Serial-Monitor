@@ -1,0 +1,99 @@
+name: Package macOS DMG
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  package-macos:
+    name: Build, package, and release DMG
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore dependencies
+        run: dotnet restore serial.slnx
+
+      - name: Build
+        run: dotnet build serial.slnx --configuration Release --no-restore
+
+      - name: Build macOS app bundle
+        run: |
+          chmod +x ./scripts/package-mac.sh
+          ./scripts/package-mac.sh
+
+      - name: Verify app bundle exists
+        run: |
+          test -d "dist/Serial Monitor.app"
+          test -f "dist/Serial Monitor.app/Contents/MacOS/serial.Desktop"
+
+      - name: Ad-hoc sign app
+        run: |
+          codesign --force --deep --sign - "dist/Serial Monitor.app"
+          codesign --verify --deep --strict --verbose=2 "dist/Serial Monitor.app"
+
+      - name: Create DMG
+        run: |
+          rm -rf "dist/dmg-staging"
+          mkdir -p "dist/dmg-staging"
+
+          cp -R "dist/Serial Monitor.app" "dist/dmg-staging/"
+          ln -s /Applications "dist/dmg-staging/Applications"
+
+          hdiutil create \
+            -volname "Serial Monitor" \
+            -srcfolder "dist/dmg-staging" \
+            -ov \
+            -format UDZO \
+            "dist/Serial Monitor.dmg"
+
+      - name: Ad-hoc sign DMG
+        run: |
+          codesign --force --sign - "dist/Serial Monitor.dmg"
+          codesign --verify --verbose=2 "dist/Serial Monitor.dmg"
+
+      - name: Compute next release version
+        id: version
+        run: |
+          git fetch --tags
+
+          latest_tag=$(git tag --list "v0.1.*" --sort=-v:refname | head -n 1)
+
+          if [ -z "$latest_tag" ]; then
+            next_tag="v0.1.0"
+          else
+            patch=${latest_tag##*.}
+            next_patch=$((patch + 1))
+            next_tag="v0.1.$next_patch"
+          fi
+
+          echo "Next tag: $next_tag"
+          echo "tag=$next_tag" >> "$GITHUB_OUTPUT"
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Serial-Monitor-macOS-DMG-${{ steps.version.outputs.tag }}
+          path: "dist/Serial Monitor.dmg"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ steps.version.outputs.tag }}" \
+            "dist/Serial Monitor.dmg" \
+            --title "Serial Monitor ${{ steps.version.outputs.tag }}" \
+            --notes "Automated macOS DMG build for ${{ steps.version.outputs.tag }}"
