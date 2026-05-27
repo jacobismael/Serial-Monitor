@@ -2,17 +2,19 @@
 
 A serial monitor, plotter, and logic analyzer for macOS.
 
-<img width="1606" height="1162" alt="Screenshot 2026-05-26 at 10 31 04 PM" src="https://github.com/user-attachments/assets/2016cab6-b59f-4c7f-b842-af58cbb7ec71" />
+<img width="1600" height="699" alt="Logicom Logo" src="https://github.com/user-attachments/assets/f6e4f6e7-411e-4e81-b98f-7e68cd48514e" />
 
+## Serial Monitor
 
-## Features
+<img width="1676" height="1027" alt="Screenshot 2026-05-27 at 3 48 13 PM" src="https://github.com/user-attachments/assets/0720fd11-1b3b-4ab7-894c-7d81214654f9" />
 
-- List available serial ports
-- Connect/disconnect UART devices
-- Send commands
-- Select line endings: None, LF, CR, CRLF
-- Save serial output to a log file
-- Toggle timestamps
+## Serial Plotter
+
+<img width="1676" height="1027" alt="Screenshot 2026-05-27 at 3 48 20 PM" src="https://github.com/user-attachments/assets/6669b85e-3d38-443b-9c4d-8b9b4ddaef55" />
+
+## Logic Analyzer
+
+<img width="1676" height="1027" alt="Screenshot 2026-05-27 at 3 48 32 PM" src="https://github.com/user-attachments/assets/de207ea7-3cf0-4e0a-8f68-fad505ea833e" />
 
 ## Run
 
