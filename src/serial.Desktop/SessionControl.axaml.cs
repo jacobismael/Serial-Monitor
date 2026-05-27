@@ -37,21 +37,12 @@ public partial class SessionControl : UserControl, IDisposable
 
     private SerialMonitor? _monitor;
     private Window? _findWindow;
-    private Window? _signalViewerWindow;
-    private Window? _statusPanelWindow;
-    private Window? _serialPlotterWindow;
-    private Canvas? _serialPlotterCanvas;
-    private TextBlock? _serialPlotterStatusTextBlock;
     private TextBox? _findTextBox;
     private readonly DispatcherTimer _uptimeTimer;
     private readonly List<LogEntry> _logEntries = [];
     private readonly List<MacroDefinition> _macroAutocompleteMatches = [];
-    private readonly List<double> _serialPlotterSamples = [];
     private bool _timestampsEnabled;
-    private bool _isDisposing;
     private bool _suppressMacroAutocomplete;
-    private double _dockedSignalViewerWidth = 360;
-    private int _waveformProbeCount;
     private string _searchText = "";
     private int _matchCount;
     private int _activeMatchIndex = -1;
@@ -60,7 +51,26 @@ public partial class SessionControl : UserControl, IDisposable
     private string? _portName;
     private int? _baudRate;
     private DateTime? _connectedAt;
+    private DateTime? _mcuResetRequestedAt;
     private DateTime? _lastMcuResetAt;
+    private DateTime? _lastRxAt;
+    private DateTime? _lastTxAt;
+    private bool _isResettingConnection;
+    private bool _reconnectInProgress;
+    private string? _resetPortName;
+    private int? _resetBaudRate;
+    private long _rxBytes;
+    private long _txBytes;
+    private int _rxLines;
+    private int _txCommands;
+    private int _serialErrors;
+    private string _lastError = "None";
+    private string _boardName = "-";
+    private string _mcuName = "-";
+    private string _targetVoltage = "-";
+    private string _deviceId = "-";
+    private string _deviceCpu = "-";
+    private McuResetState _mcuResetState = McuResetState.None;
 
     private LocalSettings _settings = new();
 
@@ -71,12 +81,13 @@ public partial class SessionControl : UserControl, IDisposable
     public event Action<Window>? UtilityWindowCreated;
     public event Action<string?, int?>? ConnectionChanged;
     public event Action? StatusSettingsRequested;
+    public event Action<string>? SerialDataReceived;
 
     public bool TimestampsEnabled => _timestampsEnabled;
-    public bool IsSignalViewerVisible => SignalViewerPanel.IsVisible;
-    public bool IsSignalViewerDetached => _signalViewerWindow != null;
-    public bool IsStatusPanelDetached => _statusPanelWindow != null;
-    public bool IsSerialPlotterVisible => _serialPlotterWindow?.IsVisible == true;
+    public bool IsSignalViewerVisible => false;
+    public bool IsSignalViewerDetached => false;
+    public bool IsStatusPanelDetached => false;
+    public bool IsSerialPlotterVisible => false;
 
     public IReadOnlyList<MacroDefinition> Macros => _settings.Macros;
 
@@ -113,10 +124,8 @@ public partial class SessionControl : UserControl, IDisposable
         ConnectButton.Click += (_, _) => ToggleConnection();
         SendButton.Click += (_, _) => SendCommand();
         ClearButton.Click += async (_, _) => await ConfirmAndClearOutput();
-        ConfigureSignalViewerContextMenu();
         ConfigureStatusPanelContextMenu();
         ConfigureSerialMonitorContextMenu();
-        WaveformScrollViewer.SizeChanged += (_, _) => UpdateWaveformLayoutHeight();
         CommandTextBox.TextChanged += (_, _) => UpdateMacroAutocomplete();
         MacroAutocompleteListBox.DoubleTapped += (_, _) => ApplyMacroAutocomplete();
 
@@ -134,9 +143,6 @@ public partial class SessionControl : UserControl, IDisposable
         };
 
         SetConnectionUiState(isConnected: false);
-        UpdateWaveformProbes(_settings.WaveformProbes);
-        SignalViewerPanel.IsVisible = false;
-        SetDockedSignalViewerColumn(isVisible: false);
         RenderMacroButtons();
 
         RefreshPorts();
@@ -155,51 +161,90 @@ public partial class SessionControl : UserControl, IDisposable
 
     private void Connect()
     {
+        string? selectedPort = PortComboBox.SelectedItem as string;
+        if (string.IsNullOrWhiteSpace(selectedPort))
+        {
+            AppendOutput("No port selected.\n");
+            return;
+        }
+
+        if (BaudComboBox.SelectedItem is not int baudRate)
+        {
+            AppendOutput("No baud rate selected.\n");
+            return;
+        }
+
+        if (TryOpenSerialMonitor(selectedPort, baudRate, out string? errorMessage))
+        {
+            AppendStatusOutput("Connected", $"to {selectedPort} at {baudRate} baud.", Brushes.LimeGreen);
+            return;
+        }
+
+        RecordSerialError(errorMessage ?? "Unknown connection error.");
+        AppendErrorOutput("Connect failed", errorMessage ?? "Unknown connection error.");
+    }
+
+    private bool TryOpenSerialMonitor(string portName, int baudRate, out string? errorMessage)
+    {
+        errorMessage = null;
+
+        SerialMonitor? monitor = null;
+
         try
         {
-            _portName = PortComboBox.SelectedItem as string;
-            if (string.IsNullOrWhiteSpace(_portName))
-            {
-                AppendOutput("No port selected.\n");
-                return;
-            }
-
-            if (BaudComboBox.SelectedItem is not int baudRate)
-            {
-                AppendOutput("No baud rate selected.\n");
-                return;
-            }
-
-            _baudRate = baudRate;
-            _monitor = new SerialMonitor(_portName, baudRate, CreateSerialPortSettings());
-            _monitor.DataReceived += data =>
+            monitor = new SerialMonitor(portName, baudRate, CreateSerialPortSettings());
+            monitor.RawDataReceived += data =>
             {
                 DateTime receivedAt = DateTime.Now;
                 Dispatcher.UIThread.Post(() =>
                 {
-                    AppendOutput(data + "\n", timestamp: receivedAt);
-                    ProcessSerialPlotterData(data);
+                    RecordReceivedBytes(data, receivedAt);
+                    AppendOutput(data, timestamp: receivedAt);
                 });
             };
-            _monitor.ErrorReceived += ex =>
+            monitor.DataReceived += data =>
             {
                 DateTime receivedAt = DateTime.Now;
                 Dispatcher.UIThread.Post(() =>
                 {
+                    RecordReceivedLine(data, receivedAt);
+                    SerialDataReceived?.Invoke(data);
+                });
+            };
+            monitor.ErrorReceived += ex =>
+            {
+                DateTime receivedAt = DateTime.Now;
+                Dispatcher.UIThread.Post(() =>
+                {
+                    bool shouldReconnect = RecordSerialError(ex.Message);
                     AppendErrorOutput("Serial error", ex.Message, receivedAt);
+
+                    if (shouldReconnect)
+                    {
+                        CloseMonitorForReset();
+                        _ = TryReconnectAfterResetAsync();
+                    }
                 });
             };
-            _monitor.Open();
+            monitor.Open();
 
+            _monitor = monitor;
+            _portName = portName;
+            _baudRate = baudRate;
             _connectedAt = DateTime.Now;
+            _isResettingConnection = false;
             _uptimeTimer.Start();
-            AppendStatusOutput("Connected", $"to {_portName} at {baudRate} baud.", Brushes.LimeGreen);
+
+            SelectConnectionValues(portName, baudRate);
             SetConnectionUiState(isConnected: true);
             ConnectionChanged?.Invoke(_portName, baudRate);
+            return true;
         }
         catch (Exception ex)
         {
-            AppendErrorOutput("Connect failed", ex.Message);
+            monitor?.Dispose();
+            errorMessage = ex.Message;
+            return false;
         }
     }
 
@@ -375,10 +420,16 @@ public partial class SessionControl : UserControl, IDisposable
     private async Task RunShellCommandAsync(MacroDefinition macro)
     {
         string label = string.IsNullOrWhiteSpace(macro.Name) ? "Command" : macro.Name;
+        bool isResetCommand = IsMcuResetProcessCommand(label, macro.Command);
         AppendStatusOutput("$ ", $"{label}: {macro.Command}", Brushes.DeepSkyBlue);
 
         try
         {
+            if (isResetCommand)
+            {
+                BeginMcuResetOperation(closeCurrentConnection: true);
+            }
+
             ProcessStartInfo startInfo = new()
             {
                 FileName = "/bin/zsh",
@@ -398,45 +449,73 @@ public partial class SessionControl : UserControl, IDisposable
 
             if (!process.Start())
             {
+                if (isResetCommand)
+                {
+                    MarkMcuResetFailed("Process did not start.");
+                    await TryReconnectAfterResetAsync();
+                }
+
                 AppendErrorOutput("Command failed", "Process did not start.");
                 return;
             }
 
-            Task<string> outputTask = process.StandardOutput.ReadToEndAsync();
-            Task<string> errorTask = process.StandardError.ReadToEndAsync();
+            Task outputTask = ReadProcessOutputAsync(process.StandardOutput);
+            Task errorTask = ReadProcessOutputAsync(process.StandardError, Brushes.Red);
 
             await process.WaitForExitAsync();
-
-            string output = await outputTask;
-            string error = await errorTask;
-
-            if (!string.IsNullOrEmpty(output))
-            {
-                AppendProcessOutput(output);
-            }
-
-            if (!string.IsNullOrEmpty(error))
-            {
-                AppendProcessOutput(error, Brushes.Red);
-            }
+            await Task.WhenAll(outputTask, errorTask);
 
             if (process.ExitCode == 0)
             {
                 AppendStatusOutput("Finished", $"{label} exited with code 0.", Brushes.LimeGreen);
+                if (isResetCommand)
+                {
+                    MarkMcuResetSuccess(DateTime.Now);
+                    await TryReconnectAfterResetAsync();
+                }
             }
             else
             {
+                if (isResetCommand)
+                {
+                    MarkMcuResetFailed($"{label} exited with code {process.ExitCode}.");
+                    await TryReconnectAfterResetAsync();
+                }
+
                 AppendErrorOutput("Command failed", $"{label} exited with code {process.ExitCode}.");
             }
         }
         catch (Exception ex)
         {
+            if (isResetCommand)
+            {
+                MarkMcuResetFailed(ex.Message);
+                await TryReconnectAfterResetAsync();
+            }
+
             AppendErrorOutput("Command failed", ex.Message);
+        }
+    }
+
+    private async Task ReadProcessOutputAsync(StreamReader reader, IBrush? defaultForeground = null)
+    {
+        while (await reader.ReadLineAsync() is { } line)
+        {
+            string output = line + "\n";
+            if (Dispatcher.UIThread.CheckAccess())
+            {
+                AppendProcessOutput(output, defaultForeground);
+            }
+            else
+            {
+                await Dispatcher.UIThread.InvokeAsync(() => AppendProcessOutput(output, defaultForeground));
+            }
         }
     }
 
     private void AppendProcessOutput(string output, IBrush? defaultForeground = null)
     {
+        ProcessStatusText(output, DateTime.Now);
         AppendOutputSegments(ParseAnsiOutput(output, defaultForeground));
     }
 
@@ -574,6 +653,33 @@ public partial class SessionControl : UserControl, IDisposable
     [GeneratedRegex(@"\x1B\[[0-?]*[ -/]*[@-~]")]
     private static partial Regex AnsiEscapeRegex();
 
+    [GeneratedRegex(@"(^|[\s_/\-])(mcu\s*)?reset($|[\s_/\-])", RegexOptions.IgnoreCase)]
+    private static partial Regex McuResetCommandRegex();
+
+    [GeneratedRegex(@"\b(fail(ed)?|error|timeout|denied|unable)\b", RegexOptions.IgnoreCase)]
+    private static partial Regex ResetFailureRegex();
+
+    [GeneratedRegex(@"^\s*Software\s+reset\s+is\s+performed\.?\s*$", RegexOptions.IgnoreCase)]
+    private static partial Regex SoftwareResetPerformedRegex();
+
+    [GeneratedRegex(@"^\s*Finished\s+.*\bRESET\b.*\s+exited\s+with\s+code\s+0\.?\s*$", RegexOptions.IgnoreCase)]
+    private static partial Regex ResetExitSuccessRegex();
+
+    [GeneratedRegex(@"^\s*Board\s*:\s*(.+)$", RegexOptions.IgnoreCase)]
+    private static partial Regex BoardLineRegex();
+
+    [GeneratedRegex(@"^\s*Voltage\s*:\s*(.+)$", RegexOptions.IgnoreCase)]
+    private static partial Regex VoltageLineRegex();
+
+    [GeneratedRegex(@"^\s*Device\s+ID\s*:\s*(.+)$", RegexOptions.IgnoreCase)]
+    private static partial Regex DeviceIdLineRegex();
+
+    [GeneratedRegex(@"^\s*Device\s+name\s*:\s*(.+)$", RegexOptions.IgnoreCase)]
+    private static partial Regex DeviceNameLineRegex();
+
+    [GeneratedRegex(@"^\s*Device\s+CPU\s*:\s*(.+)$", RegexOptions.IgnoreCase)]
+    private static partial Regex DeviceCpuLineRegex();
+
     [GeneratedRegex(@"^P\d+$", RegexOptions.IgnoreCase)]
     private static partial Regex ProbeAliasRegex();
 
@@ -604,10 +710,11 @@ public partial class SessionControl : UserControl, IDisposable
             }
 
             _monitor.Write(command, lineEnding);
-            MaybeRecordMcuReset(command);
+            RecordSentCommand(command, lineEnding);
         }
         catch (Exception ex)
         {
+            RecordSerialError(ex.Message);
             AppendErrorOutput("Send failed", ex.Message);
         }
     }
@@ -636,13 +743,198 @@ public partial class SessionControl : UserControl, IDisposable
         };
     }
 
-    private void MaybeRecordMcuReset(string command)
+    private void RecordSentCommand(string command, SerialLineEnding lineEnding)
     {
-        if (command.Contains("reset", StringComparison.OrdinalIgnoreCase))
+        _txCommands++;
+        _lastTxAt = DateTime.Now;
+        _txBytes += Encoding.UTF8.GetByteCount(command + GetLineEndingText(lineEnding));
+
+        if (IsMcuResetCommand(command))
         {
-            _lastMcuResetAt = DateTime.Now;
-            UpdateStatusPanel();
+            BeginMcuResetOperation(closeCurrentConnection: false, requestedAt: _lastTxAt);
         }
+
+        UpdateStatusPanel();
+    }
+
+    private void RecordReceivedBytes(string data, DateTime receivedAt)
+    {
+        _lastRxAt = receivedAt;
+        _rxBytes += Encoding.UTF8.GetByteCount(data);
+        ProcessStatusText(data, receivedAt);
+        UpdateStatusPanel();
+    }
+
+    private void RecordReceivedLine(string data, DateTime receivedAt)
+    {
+        _lastRxAt = receivedAt;
+        _rxLines++;
+        ProcessStatusText(data, receivedAt);
+        UpdateStatusPanel();
+    }
+
+    private bool RecordSerialError(string message)
+    {
+        _serialErrors++;
+        _lastError = string.IsNullOrWhiteSpace(message) ? "Unknown" : message.Trim();
+
+        bool resetRelated = _isResettingConnection || _mcuResetState == McuResetState.Pending;
+        if (resetRelated)
+        {
+            EnsureResetReconnectTarget();
+            _isResettingConnection = true;
+        }
+
+        UpdateStatusPanel();
+        return resetRelated;
+    }
+
+    private static string GetLineEndingText(SerialLineEnding lineEnding)
+    {
+        return lineEnding switch
+        {
+            SerialLineEnding.LF => "\n",
+            SerialLineEnding.CR => "\r",
+            SerialLineEnding.CRLF => "\r\n",
+            _ => ""
+        };
+    }
+
+    private static int CountReceivedLines(string data)
+    {
+        string normalized = data.Replace("\r\n", "\n").Replace('\r', '\n');
+        return normalized
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Length;
+    }
+
+    private static bool IsMcuResetCommand(string command)
+    {
+        string normalized = command.Trim();
+        if (normalized.Length == 0)
+        {
+            return false;
+        }
+
+        return McuResetCommandRegex().IsMatch(normalized)
+            || normalized.Contains("sysreset", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(normalized, "nrst", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsMcuResetProcessCommand(string label, string command)
+    {
+        return IsMcuResetCommand(label)
+            || IsMcuResetCommand(command)
+            || (command.Contains("STM32_Programmer_CLI", StringComparison.OrdinalIgnoreCase)
+                && (command.Contains("rst", StringComparison.OrdinalIgnoreCase)
+                    || command.Contains("reset", StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private void ProcessStatusText(string data, DateTime timestamp)
+    {
+        string cleanText = AnsiEscapeRegex().Replace(data, "");
+        string normalized = cleanText.Replace("\r\n", "\n").Replace('\r', '\n');
+
+        foreach (string line in normalized.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+        {
+            ProcessStatusLine(line, timestamp);
+        }
+    }
+
+    private void ProcessStatusLine(string line, DateTime timestamp)
+    {
+        string text = line.Trim();
+        if (text.Length == 0)
+        {
+            return;
+        }
+
+        if (TryApplyDeviceLine(BoardLineRegex().Match(text), value => _boardName = value)
+            || TryApplyDeviceLine(VoltageLineRegex().Match(text), value => _targetVoltage = value)
+            || TryApplyDeviceLine(DeviceIdLineRegex().Match(text), value => _deviceId = value)
+            || TryApplyDeviceLine(DeviceNameLineRegex().Match(text), value => _mcuName = value)
+            || TryApplyDeviceLine(DeviceCpuLineRegex().Match(text), value => _deviceCpu = value))
+        {
+            return;
+        }
+
+        if (SoftwareResetPerformedRegex().IsMatch(text) || ResetExitSuccessRegex().IsMatch(text))
+        {
+            MarkMcuResetSuccess(timestamp);
+            return;
+        }
+
+        if ((_mcuResetState == McuResetState.Pending || _isResettingConnection)
+            && !IsLikelyResetEcho(text)
+            && ResetFailureRegex().IsMatch(text))
+        {
+            MarkMcuResetFailed(text);
+        }
+    }
+
+    private static bool TryApplyDeviceLine(Match match, Action<string> apply)
+    {
+        if (!match.Success)
+        {
+            return false;
+        }
+
+        string value = match.Groups[1].Value.Trim();
+        if (value.Length > 0)
+        {
+            apply(value);
+        }
+
+        return true;
+    }
+
+    private static bool IsLikelyResetEcho(string text)
+    {
+        string normalized = text.Trim().Trim('>', ' ');
+        return string.Equals(normalized, "reset", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(normalized, "stm32 reset", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void BeginMcuResetOperation(bool closeCurrentConnection, DateTime? requestedAt = null)
+    {
+        DateTime timestamp = requestedAt ?? DateTime.Now;
+        _mcuResetRequestedAt = timestamp;
+        _lastMcuResetAt = null;
+        _mcuResetState = McuResetState.Pending;
+        _isResettingConnection = true;
+        EnsureResetReconnectTarget();
+
+        if (closeCurrentConnection)
+        {
+            CloseMonitorForReset();
+        }
+
+        UpdateStatusPanel();
+    }
+
+    private void EnsureResetReconnectTarget()
+    {
+        _resetPortName ??= _portName ?? (PortComboBox.SelectedItem as string);
+        if (!_resetBaudRate.HasValue)
+        {
+            _resetBaudRate = _baudRate ?? (BaudComboBox.SelectedItem is int selectedBaud ? selectedBaud : null);
+        }
+    }
+
+    private void MarkMcuResetSuccess(DateTime timestamp)
+    {
+        _lastMcuResetAt = timestamp;
+        _mcuResetState = McuResetState.Success;
+        _isResettingConnection = _monitor?.IsOpen != true && !string.IsNullOrWhiteSpace(_resetPortName);
+        UpdateStatusPanel();
+    }
+
+    private void MarkMcuResetFailed(string message)
+    {
+        _mcuResetState = McuResetState.Failed;
+        _isResettingConnection = false;
+        _lastError = string.IsNullOrWhiteSpace(message) ? "Reset failed." : message.Trim();
+        UpdateStatusPanel();
     }
 
     public void UpdateMacros(IEnumerable<MacroDefinition> macros)
@@ -686,12 +978,114 @@ public partial class SessionControl : UserControl, IDisposable
         }
     }
 
+    private void SelectConnectionValues(string portName, int baudRate)
+    {
+        if (!Equals(PortComboBox.SelectedItem, portName))
+        {
+            PortComboBox.SelectedItem = portName;
+        }
+
+        if (!Equals(BaudComboBox.SelectedItem, baudRate))
+        {
+            BaudComboBox.SelectedItem = baudRate;
+        }
+    }
+
+    private void CloseMonitorForReset()
+    {
+        _monitor?.Dispose();
+        _monitor = null;
+        _connectedAt = null;
+        _uptimeTimer.Stop();
+        SetConnectionUiState(isConnected: false);
+    }
+
+    private async Task TryReconnectAfterResetAsync()
+    {
+        if (_reconnectInProgress)
+        {
+            return;
+        }
+
+        EnsureResetReconnectTarget();
+        if (string.IsNullOrWhiteSpace(_resetPortName) || !_resetBaudRate.HasValue)
+        {
+            _isResettingConnection = false;
+            UpdateStatusPanel();
+            return;
+        }
+
+        string portName = _resetPortName;
+        int baudRate = _resetBaudRate.Value;
+        _reconnectInProgress = true;
+
+        try
+        {
+            string lastReconnectError = $"Port {portName} was not found after reset.";
+
+            for (int attempt = 0; attempt < 8; attempt++)
+            {
+                await Task.Delay(attempt == 0 ? 400 : 650);
+
+                string[] ports = SerialMonitor.GetAvailablePorts();
+                if (!ports.Contains(portName, StringComparer.Ordinal))
+                {
+                    lastReconnectError = $"Port {portName} is not available.";
+                    continue;
+                }
+
+                bool connected = false;
+                string? connectError = null;
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    connected = TryOpenSerialMonitor(portName, baudRate, out connectError);
+                });
+
+                if (connected)
+                {
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        _resetPortName = null;
+                        _resetBaudRate = null;
+                        _isResettingConnection = false;
+                        AppendStatusOutput("Reconnected", $"to {portName} at {baudRate} baud.", Brushes.LimeGreen);
+                        UpdateStatusPanel();
+                    });
+                    return;
+                }
+
+                lastReconnectError = connectError ?? "Reconnect failed.";
+            }
+
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                _isResettingConnection = false;
+                _lastError = lastReconnectError;
+                if (_mcuResetState == McuResetState.Pending)
+                {
+                    _mcuResetState = McuResetState.Failed;
+                }
+
+                SetConnectionUiState(isConnected: false);
+                ConnectionChanged?.Invoke(null, null);
+                AppendErrorOutput("Reconnect failed", lastReconnectError);
+            });
+        }
+        finally
+        {
+            _reconnectInProgress = false;
+        }
+    }
+
     private void Disconnect()
     {
         _monitor?.Dispose();
         _monitor = null;
         _uptimeTimer.Stop();
         _connectedAt = null;
+        _isResettingConnection = false;
+        _resetPortName = null;
+        _resetBaudRate = null;
 
         AppendStatusOutput("Disconnected", $"from {_portName}.", Brushes.Cyan);
         SetConnectionUiState(isConnected: false);
@@ -722,207 +1116,47 @@ public partial class SessionControl : UserControl, IDisposable
 
     public bool ToggleSignalViewer()
     {
-        SignalViewerPanel.IsVisible = !SignalViewerPanel.IsVisible;
-        if (IsSignalViewerDetached)
-        {
-            if (SignalViewerPanel.IsVisible)
-            {
-                _signalViewerWindow?.Show();
-                _signalViewerWindow?.Activate();
-            }
-            else
-            {
-                _signalViewerWindow?.Hide();
-            }
-        }
-        else
-        {
-            SetDockedSignalViewerColumn(SignalViewerPanel.IsVisible);
-        }
-
-        return SignalViewerPanel.IsVisible;
+        SignalViewerDetachedChanged?.Invoke(false);
+        return false;
     }
 
     public bool ToggleSignalViewerDetached()
     {
-        if (IsSignalViewerDetached)
-        {
-            AttachSignalViewer();
-            return false;
-        }
-
-        DetachSignalViewer();
-        return true;
+        SignalViewerDetachedChanged?.Invoke(false);
+        return false;
     }
 
     private void DetachSignalViewer()
     {
-        if (IsSignalViewerDetached)
-        {
-            _signalViewerWindow?.Activate();
-            return;
-        }
-
-        SignalViewerPanel.IsVisible = true;
-        MainContentGrid.Children.Remove(SignalViewerPanel);
-        SignalViewerPanel.Margin = new Thickness(0);
-        SetDockedSignalViewerColumn(isVisible: false);
-
-        Window window = new()
-        {
-            Title = "Logic Analyzer",
-            Width = 560,
-            Height = 520,
-            MinWidth = 360,
-            MinHeight = 360,
-            Content = SignalViewerPanel
-        };
-
-        _signalViewerWindow = window;
-        UtilityWindowCreated?.Invoke(window);
-        window.Closed += (_, _) =>
-        {
-            if (_isDisposing)
-            {
-                return;
-            }
-
-            AttachSignalViewer();
-        };
-
-        if (Window.GetTopLevel(this) is Window owner)
-        {
-            window.Show(owner);
-        }
-        else
-        {
-            window.Show();
-        }
-
-        SignalViewerDetachedChanged?.Invoke(true);
+        SignalViewerDetachedChanged?.Invoke(false);
     }
 
     private void AttachSignalViewer()
     {
-        Window? window = _signalViewerWindow;
-        if (window == null)
-        {
-            return;
-        }
-
-        _signalViewerWindow = null;
-        window.Content = null;
-
-        if (!MainContentGrid.Children.Contains(SignalViewerPanel))
-        {
-            Grid.SetColumn(SignalViewerPanel, 2);
-            MainContentGrid.Children.Add(SignalViewerPanel);
-        }
-
-        SignalViewerPanel.IsVisible = true;
-        SignalViewerPanel.Margin = new Thickness(10, 0, 0, 0);
-        SetDockedSignalViewerColumn(isVisible: true);
-
-        if (window.IsVisible)
-        {
-            window.Close();
-        }
-
         SignalViewerDetachedChanged?.Invoke(false);
     }
 
     private void DetachStatusPanel()
     {
-        if (_statusPanelWindow != null)
-        {
-            _statusPanelWindow.Show();
-            _statusPanelWindow.Activate();
-            return;
-        }
-
-        RemoveStatusPanelFromParent();
-        StatusPanel.Margin = new Thickness(0);
-        StatusPanel.IsVisible = true;
-
-        Window window = new()
-        {
-            Title = "Logicom Status",
-            Width = 430,
-            Height = 340,
-            MinWidth = 360,
-            MinHeight = 300,
-            WindowStartupLocation = WindowStartupLocation.CenterScreen,
-            Content = StatusPanel
-        };
-
-        _statusPanelWindow = window;
-        UtilityWindowCreated?.Invoke(window);
-        window.Closed += (_, _) =>
-        {
-            if (_isDisposing)
-            {
-                return;
-            }
-
-            if (_statusPanelWindow == window)
-            {
-                AttachStatusPanel(isVisible: false);
-            }
-        };
-
-        window.Show();
-        window.Activate();
-
-        StatusPanelDetachedChanged?.Invoke(true);
+        SetStatusPanelVisible(true);
     }
 
     private void AttachStatusPanel(bool isVisible = true)
     {
-        Window? window = _statusPanelWindow;
-        _statusPanelWindow = null;
-
-        if (window != null)
-        {
-            window.Content = null;
-        }
-
-        if (!FooterPanel.Children.Contains(StatusPanel))
-        {
-            FooterPanel.Children.Insert(0, StatusPanel);
-        }
-
-        StatusPanel.Margin = new Thickness(0);
-        StatusPanel.IsVisible = isVisible;
-
-        if (window?.IsVisible == true)
-        {
-            window.Close();
-        }
-
-        StatusPanelDetachedChanged?.Invoke(false);
+        SetStatusPanelVisible(isVisible);
     }
 
     public bool ToggleStatusPanelDetached()
     {
-        if (_statusPanelWindow != null)
-        {
-            AttachStatusPanel();
-            return false;
-        }
-
-        DetachStatusPanel();
-        return true;
+        SetStatusPanelVisible(true);
+        StatusPanelDetachedChanged?.Invoke(false);
+        return false;
     }
 
     private void CloseStatusPanel()
     {
-        if (_statusPanelWindow != null)
-        {
-            _statusPanelWindow.Close();
-            return;
-        }
-
-        StatusPanel.IsVisible = false;
+        SetStatusPanelVisible(false);
+        StatusPanelDetachedChanged?.Invoke(false);
     }
 
     private void RemoveStatusPanelFromParent()
@@ -935,66 +1169,32 @@ public partial class SessionControl : UserControl, IDisposable
 
     private void SetDockedSignalViewerColumn(bool isVisible)
     {
-        if (!isVisible && MainContentGrid.ColumnDefinitions[2].ActualWidth > 0)
-        {
-            _dockedSignalViewerWidth = MainContentGrid.ColumnDefinitions[2].ActualWidth;
-        }
-
-        SignalViewerSplitter.IsVisible = isVisible;
-        MainContentGrid.ColumnDefinitions[1].Width = isVisible
-            ? new GridLength(6)
-            : new GridLength(0);
-        MainContentGrid.ColumnDefinitions[2].Width = isVisible
-            ? new GridLength(_dockedSignalViewerWidth)
-            : new GridLength(0);
+        SignalViewerSplitter.IsVisible = false;
     }
 
     private void ConfigureSignalViewerContextMenu()
     {
-        MenuItem closeItem = new()
-        {
-            Header = "Close Logic Analyzer"
-        };
-        MenuItem detachItem = new()
-        {
-            Header = "Detach / Attach Logic Analyzer"
-        };
-        MenuItem showStatusItem = new()
-        {
-            Header = "Show Status Panel"
-        };
-
-        closeItem.Click += (_, _) =>
-        {
-            if (SignalViewerPanel.IsVisible)
-            {
-                ToggleSignalViewer();
-            }
-        };
-        detachItem.Click += (_, _) => ToggleSignalViewerDetached();
-        showStatusItem.Click += (_, _) => ShowStatusPanel();
-
-        SignalViewerPanel.ContextMenu = new ContextMenu
-        {
-            Items =
-            {
-                closeItem,
-                detachItem,
-                showStatusItem
-            }
-        };
+        SignalViewerPanel.ContextMenu = null;
     }
 
     public void ShowStatusPanel()
     {
-        if (_statusPanelWindow != null)
+        SetStatusPanelVisible(true);
+        StatusPanelDetachedChanged?.Invoke(false);
+    }
+
+    private void SetStatusPanelVisible(bool isVisible)
+    {
+        StatusPanel.IsVisible = isVisible;
+
+        if (MainContentGrid.ColumnDefinitions.Count > 1)
         {
-            _statusPanelWindow.Show();
-            _statusPanelWindow.Activate();
-            return;
+            MainContentGrid.ColumnDefinitions[1].Width = isVisible
+                ? new GridLength(340)
+                : new GridLength(0);
         }
 
-        DetachStatusPanel();
+        MainContentGrid.ColumnSpacing = isVisible ? 12 : 0;
     }
 
     private void ConfigureStatusPanelContextMenu()
@@ -1003,17 +1203,12 @@ public partial class SessionControl : UserControl, IDisposable
         {
             Header = "Close Status Panel"
         };
-        MenuItem detachItem = new()
-        {
-            Header = "Detach / Attach Status Panel"
-        };
         MenuItem customizeItem = new()
         {
             Header = "Customize Status Settings..."
         };
 
         closeItem.Click += (_, _) => Dispatcher.UIThread.Post(CloseStatusPanel);
-        detachItem.Click += (_, _) => Dispatcher.UIThread.Post(() => ToggleStatusPanelDetached());
         customizeItem.Click += (_, _) => StatusSettingsRequested?.Invoke();
 
         StatusPanel.ContextMenu = new ContextMenu
@@ -1021,7 +1216,6 @@ public partial class SessionControl : UserControl, IDisposable
             Items =
             {
                 closeItem,
-                detachItem,
                 customizeItem
             }
         };
@@ -1050,10 +1244,7 @@ public partial class SessionControl : UserControl, IDisposable
         settings.Normalize();
         _settings.StatusPanel = settings;
         LocalSettings.Save(_settings);
-        StatusDataBitsTextBlock.Text = settings.DataBits;
-        StatusParityTextBlock.Text = settings.Parity;
-        StatusStopBitsTextBlock.Text = settings.StopBits;
-        StatusFlowControlTextBlock.Text = settings.FlowControl;
+        UpdateStatusPanel();
     }
 
     public void UpdateSerialPlotterSettings(SerialPlotterSettings settings)
@@ -1061,8 +1252,6 @@ public partial class SessionControl : UserControl, IDisposable
         settings.Normalize();
         _settings.SerialPlotter = settings;
         LocalSettings.Save(_settings);
-        TrimSerialPlotterSamples();
-        RedrawSerialPlotter();
     }
 
     private SerialPortSettings CreateSerialPortSettings()
@@ -1122,87 +1311,11 @@ public partial class SessionControl : UserControl, IDisposable
         List<WaveformProbeDefinition> normalized = LocalSettings.NormalizeWaveformProbes(probes);
         _settings.WaveformProbes = normalized;
         LocalSettings.Save(_settings);
-        _waveformProbeCount = normalized.Count;
-        UpdateWaveformLayoutHeight();
-
-        WaveformRowsGrid.Children.Clear();
-        WaveformRowsGrid.RowDefinitions.Clear();
-
-        if (normalized.Count == 0)
-        {
-            WaveformRowsGrid.RowDefinitions.Add(new RowDefinition(new GridLength(1, GridUnitType.Star)));
-            WaveformRowsGrid.Children.Add(new TextBlock
-            {
-                Text = "No probes configured.",
-                Foreground = Brushes.Gray,
-                VerticalAlignment = VerticalAlignment.Center
-            });
-            LogicAnalyzerHoverTextBlock.Text = "Logic level: -";
-            return;
-        }
-
-        for (int i = 0; i < normalized.Count; i++)
-        {
-            WaveformRowsGrid.RowDefinitions.Add(new RowDefinition(new GridLength(1, GridUnitType.Star)));
-            WaveformProbeDefinition probe = normalized[i];
-            IBrush foreground = CreateProbeBrush(probe.Color, i);
-            Canvas waveformCanvas = new()
-            {
-                Background = Brushes.Transparent,
-                MinHeight = 72,
-                MinWidth = 620,
-                HorizontalAlignment = HorizontalAlignment.Stretch,
-                VerticalAlignment = VerticalAlignment.Stretch
-            };
-            Grid row = new()
-            {
-                Background = Brushes.Transparent,
-                ColumnSpacing = 8,
-                MinHeight = 84,
-                VerticalAlignment = VerticalAlignment.Stretch,
-                ColumnDefinitions =
-                {
-                    new ColumnDefinition(new GridLength(92)),
-                    new ColumnDefinition(new GridLength(1, GridUnitType.Star))
-                }
-            };
-            string displayName = GetWaveformDisplayName(probe);
-            TextBlock signalTextBlock = new()
-            {
-                Text = displayName,
-                Foreground = foreground,
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            int probeIndex = i;
-
-            Grid.SetColumn(signalTextBlock, 0);
-            Grid.SetColumn(waveformCanvas, 1);
-            Grid.SetRow(row, i);
-            row.Children.Add(signalTextBlock);
-            row.Children.Add(waveformCanvas);
-            WaveformRowsGrid.Children.Add(row);
-            waveformCanvas.SizeChanged += (_, _) => DrawWaveform(waveformCanvas, foreground, probeIndex);
-            waveformCanvas.PointerMoved += (_, e) =>
-            {
-                UpdateLogicAnalyzerHover(waveformCanvas, probeIndex, displayName, e.GetPosition(waveformCanvas));
-            };
-            row.PointerMoved += (_, e) =>
-            {
-                UpdateLogicAnalyzerHover(waveformCanvas, probeIndex, displayName, e.GetPosition(waveformCanvas));
-            };
-            row.PointerExited += (_, _) =>
-            {
-                LogicAnalyzerHoverTextBlock.Text = "Logic level: -";
-            };
-            DrawWaveform(waveformCanvas, foreground, probeIndex);
-        }
     }
 
     private void UpdateWaveformLayoutHeight()
     {
-        double viewportHeight = Math.Max(0, WaveformScrollViewer.Bounds.Height);
-        double contentHeight = Math.Max(1, _waveformProbeCount) * 84;
-        WaveformRowsGrid.MinHeight = Math.Max(viewportHeight, contentHeight);
+        WaveformRowsGrid.MinHeight = Math.Max(0, WaveformScrollViewer.Bounds.Height);
     }
 
     private static string GetWaveformDisplayName(WaveformProbeDefinition probe)
@@ -1312,314 +1425,7 @@ public partial class SessionControl : UserControl, IDisposable
 
     public void ShowSerialPlotter()
     {
-        if (_serialPlotterWindow is { IsVisible: true })
-        {
-            _serialPlotterWindow.Activate();
-            return;
-        }
-
-        _serialPlotterCanvas = new Canvas
-        {
-            Background = Brushes.Transparent,
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            VerticalAlignment = VerticalAlignment.Stretch,
-            MinHeight = 220
-        };
-        _serialPlotterStatusTextBlock = new TextBlock
-        {
-            Text = "Waiting for numeric serial data.",
-            Foreground = Brushes.Gray
-        };
-        Button clearButton = new()
-        {
-            Content = "Clear",
-            MinWidth = 82
-        };
-        Button exportButton = new()
-        {
-            Content = "Export",
-            MinWidth = 82
-        };
-
-        clearButton.Click += (_, _) =>
-        {
-            _serialPlotterSamples.Clear();
-            RedrawSerialPlotter();
-        };
-        exportButton.Click += async (_, _) => await ExportSerialPlotterAsync();
-        _serialPlotterCanvas.SizeChanged += (_, _) => RedrawSerialPlotter();
-
-        Grid headerGrid = new()
-        {
-            ColumnDefinitions =
-            {
-                new ColumnDefinition(new GridLength(1, GridUnitType.Star)),
-                new ColumnDefinition(GridLength.Auto),
-                new ColumnDefinition(GridLength.Auto)
-            },
-            ColumnSpacing = 8
-        };
-        headerGrid.Children.Add(new TextBlock
-        {
-            Text = "SERIAL PLOTTER --------------------------------",
-            Foreground = Brushes.White,
-            FontWeight = FontWeight.Bold,
-            VerticalAlignment = VerticalAlignment.Center
-        });
-        Grid.SetColumn(exportButton, 1);
-        Grid.SetColumn(clearButton, 2);
-        headerGrid.Children.Add(exportButton);
-        headerGrid.Children.Add(clearButton);
-
-        Border plotBorder = new()
-        {
-            BorderBrush = Brushes.Gray,
-            BorderThickness = new Thickness(1),
-            Background = Brushes.Black,
-            CornerRadius = new CornerRadius(3),
-            Padding = new Thickness(12),
-            Child = _serialPlotterCanvas
-        };
-
-        Grid content = new()
-        {
-            Margin = new Thickness(18),
-            RowDefinitions =
-            {
-                new RowDefinition(GridLength.Auto),
-                new RowDefinition(new GridLength(1, GridUnitType.Star)),
-                new RowDefinition(GridLength.Auto)
-            },
-            RowSpacing = 10
-        };
-        Grid.SetRow(headerGrid, 0);
-        Grid.SetRow(plotBorder, 1);
-        Grid.SetRow(_serialPlotterStatusTextBlock, 2);
-        content.Children.Add(headerGrid);
-        content.Children.Add(plotBorder);
-        content.Children.Add(_serialPlotterStatusTextBlock);
-
-        Window window = new()
-        {
-            Title = "Logicom Serial Plotter",
-            Width = 680,
-            Height = 420,
-            MinWidth = 420,
-            MinHeight = 280,
-            WindowStartupLocation = WindowStartupLocation.CenterScreen,
-            Content = content
-        };
-
-        _serialPlotterWindow = window;
-        UtilityWindowCreated?.Invoke(window);
-        window.Closed += (_, _) =>
-        {
-            if (_serialPlotterWindow == window)
-            {
-                _serialPlotterWindow = null;
-                _serialPlotterCanvas = null;
-                _serialPlotterStatusTextBlock = null;
-                SerialPlotterToggled?.Invoke(false);
-            }
-        };
-
-        window.Show();
-        window.Activate();
-
-        SerialPlotterToggled?.Invoke(true);
-        RedrawSerialPlotter();
-    }
-
-    private async Task ExportSerialPlotterAsync()
-    {
-        if (_serialPlotterSamples.Count == 0)
-        {
-            return;
-        }
-
-        TopLevel? topLevel = _serialPlotterWindow ?? TopLevel.GetTopLevel(this);
-        if (topLevel == null)
-        {
-            return;
-        }
-
-        FilePickerSaveOptions saveOptions = new()
-        {
-            Title = "Export Serial Plotter",
-            SuggestedFileName = $"serial-plotter-{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.csv",
-            DefaultExtension = "csv",
-            FileTypeChoices =
-            [
-                new FilePickerFileType("CSV files")
-                {
-                    Patterns = ["*.csv"]
-                }
-            ]
-        };
-
-        IStorageFile? file = await topLevel.StorageProvider.SaveFilePickerAsync(saveOptions);
-        if (file == null)
-        {
-            return;
-        }
-
-        await using Stream stream = await file.OpenWriteAsync();
-        using StreamWriter writer = new(stream);
-        await writer.WriteLineAsync("index,value");
-        for (int i = 0; i < _serialPlotterSamples.Count; i++)
-        {
-            await writer.WriteLineAsync(string.Format(
-                CultureInfo.InvariantCulture,
-                "{0},{1}",
-                i,
-                _serialPlotterSamples[i]));
-        }
-    }
-
-    private void ProcessSerialPlotterData(string data)
-    {
-        if (!TryParseSerialPlotterSample(data, out double sample))
-        {
-            return;
-        }
-
-        _serialPlotterSamples.Add(sample);
-        TrimSerialPlotterSamples();
-
-        RedrawSerialPlotter();
-    }
-
-    private void TrimSerialPlotterSamples()
-    {
-        int maxSamples = Math.Max(10, _settings.SerialPlotter.MaxSamples);
-        if (_serialPlotterSamples.Count > maxSamples)
-        {
-            _serialPlotterSamples.RemoveRange(0, _serialPlotterSamples.Count - maxSamples);
-        }
-    }
-
-    private static bool TryParseSerialPlotterSample(string data, out double sample)
-    {
-        char[] separators = [' ', '\t', ',', ';', ':'];
-        foreach (string rawToken in data.Split(separators, StringSplitOptions.RemoveEmptyEntries))
-        {
-            string token = rawToken;
-            int equalsIndex = token.IndexOf('=');
-            if (equalsIndex >= 0 && equalsIndex < token.Length - 1)
-            {
-                token = token[(equalsIndex + 1)..];
-            }
-
-            if (double.TryParse(
-                token,
-                NumberStyles.Float,
-                CultureInfo.InvariantCulture,
-                out sample))
-            {
-                return true;
-            }
-        }
-
-        sample = 0;
-        return false;
-    }
-
-    private void RedrawSerialPlotter()
-    {
-        Canvas? canvas = _serialPlotterCanvas;
-        TextBlock? statusTextBlock = _serialPlotterStatusTextBlock;
-        if (canvas == null || statusTextBlock == null)
-        {
-            return;
-        }
-
-        canvas.Children.Clear();
-
-        double width = Math.Max(240, canvas.Bounds.Width);
-        double height = Math.Max(180, canvas.Bounds.Height);
-        DrawPlotterGrid(canvas, width, height);
-
-        if (_serialPlotterSamples.Count < 2)
-        {
-            statusTextBlock.Text = _serialPlotterSamples.Count == 0
-                ? "Waiting for numeric serial data."
-                : $"Last: {_serialPlotterSamples[^1]:0.###}";
-            return;
-        }
-
-        _settings.SerialPlotter.Normalize();
-        int visibleCount = Math.Min(_serialPlotterSamples.Count, _settings.SerialPlotter.VisibleSamples);
-        List<double> visibleSamples = _serialPlotterSamples
-            .Skip(_serialPlotterSamples.Count - visibleCount)
-            .ToList();
-        double min = _settings.SerialPlotter.AutoScale
-            ? visibleSamples.Min()
-            : _settings.SerialPlotter.MinimumValue;
-        double max = _settings.SerialPlotter.AutoScale
-            ? visibleSamples.Max()
-            : _settings.SerialPlotter.MaximumValue;
-        if (Math.Abs(max - min) < 0.000001)
-        {
-            min -= 1;
-            max += 1;
-        }
-
-        double xStep = width / Math.Max(1, visibleSamples.Count - 1);
-        Point previous = ToPlotterPoint(visibleSamples[0], 0, xStep, min, max, height);
-        for (int i = 1; i < visibleSamples.Count; i++)
-        {
-            Point next = ToPlotterPoint(visibleSamples[i], i, xStep, min, max, height);
-            canvas.Children.Add(new Line
-            {
-                StartPoint = previous,
-                EndPoint = next,
-                Stroke = CreateProbeBrush(_settings.SerialPlotter.LineColor, 0),
-                StrokeThickness = 1.5
-            });
-            previous = next;
-        }
-
-        double last = visibleSamples[^1];
-        statusTextBlock.Text = $"Last: {last:0.###}   Min: {min:0.###}   Max: {max:0.###}   Samples: {_serialPlotterSamples.Count}";
-    }
-
-    private static void DrawPlotterGrid(Canvas canvas, double width, double height)
-    {
-        for (int i = 0; i <= 8; i++)
-        {
-            double x = width * i / 8;
-            canvas.Children.Add(new Line
-            {
-                StartPoint = new Point(x, 0),
-                EndPoint = new Point(x, height),
-                Stroke = Brushes.DimGray,
-                StrokeThickness = 0.5
-            });
-        }
-
-        for (int i = 0; i <= 4; i++)
-        {
-            double y = height * i / 4;
-            canvas.Children.Add(new Line
-            {
-                StartPoint = new Point(0, y),
-                EndPoint = new Point(width, y),
-                Stroke = Brushes.DimGray,
-                StrokeThickness = 0.5
-            });
-        }
-    }
-
-    private static Point ToPlotterPoint(
-        double value,
-        int index,
-        double xStep,
-        double min,
-        double max,
-        double height)
-    {
-        double normalized = (value - min) / (max - min);
-        return new Point(index * xStep, height - (normalized * height));
+        SerialPlotterToggled?.Invoke(false);
     }
 
     private static IBrush CreateProbeBrush(string color, int index)
@@ -1672,20 +1478,125 @@ public partial class SessionControl : UserControl, IDisposable
     private void UpdateStatusPanel()
     {
         bool isConnected = _monitor?.IsOpen == true;
-        StatusConnectionTextBlock.Text = isConnected ? "Connected" : "Disconnected";
-        StatusPortTextBlock.Text = isConnected
+        string connectionState = _isResettingConnection || _mcuResetState == McuResetState.Pending
+            ? "Resetting..."
+            : isConnected
+                ? "Connected"
+                : "Disconnected";
+        string port = isConnected
             ? _portName ?? "-"
             : PortComboBox.SelectedItem as string ?? "-";
-        StatusBaudTextBlock.Text = isConnected
-            ? _baudRate?.ToString() ?? "-"
+        string baudRate = isConnected
+            ? _baudRate?.ToString(CultureInfo.InvariantCulture) ?? "-"
             : BaudComboBox.SelectedItem?.ToString() ?? "-";
-        StatusLineEndingTextBlock.Text = LineEndingComboBox.SelectedItem?.ToString() ?? "-";
-        StatusMcuResetTextBlock.Text = _lastMcuResetAt.HasValue
-            ? $"Done ({_lastMcuResetAt.Value:HH:mm:ss})"
-            : "-";
-        StatusUptimeTextBlock.Text = _connectedAt.HasValue
+        string lineEnding = LineEndingComboBox.SelectedItem?.ToString() ?? "-";
+        string uptime = _connectedAt.HasValue
             ? FormatUptime(DateTime.Now - _connectedAt.Value)
             : "-";
+        string logText = BuildLogText(showTimestamps: false);
+
+        StringBuilder builder = new();
+        AppendStatusSection(builder, "STATUS");
+        AppendStatusRow(builder, "Connection", connectionState);
+        AppendStatusRow(builder, "Uptime", uptime);
+        builder.AppendLine();
+
+        AppendStatusSection(builder, "SERIAL");
+        AppendStatusRow(builder, "Port", port);
+        AppendStatusRow(builder, "Baud Rate", baudRate);
+        AppendStatusRow(builder, "Line Ending", lineEnding);
+        AppendStatusRow(builder, "Flow Control", _settings.StatusPanel.FlowControl);
+        builder.AppendLine();
+
+        AppendStatusSection(builder, "TRAFFIC");
+        AppendStatusRow(builder, "RX Bytes", _rxBytes.ToString("N0", CultureInfo.InvariantCulture));
+        AppendStatusRow(builder, "TX Bytes", _txBytes.ToString("N0", CultureInfo.InvariantCulture));
+        AppendStatusRow(builder, "RX Lines", _rxLines.ToString("N0", CultureInfo.InvariantCulture));
+        AppendStatusRow(builder, "TX Commands", _txCommands.ToString("N0", CultureInfo.InvariantCulture));
+        AppendStatusRow(builder, "Last RX", FormatRelativeTime(_lastRxAt));
+        AppendStatusRow(builder, "Last TX", FormatRelativeTime(_lastTxAt));
+        builder.AppendLine();
+
+        AppendStatusSection(builder, "DEVICE");
+        AppendStatusRow(builder, "Board", _boardName);
+        AppendStatusRow(builder, "MCU", _mcuName);
+        AppendStatusRow(builder, "Target Voltage", _targetVoltage);
+        AppendStatusRow(builder, "MCU Reset", FormatMcuResetStatus());
+        builder.AppendLine();
+
+        AppendStatusSection(builder, "LOG");
+        AppendStatusRow(builder, "Timestamps", _timestampsEnabled ? "On" : "Off");
+        AppendStatusRow(builder, "Auto-scroll", "On");
+        AppendStatusRow(builder, "Log Lines", CountReceivedLines(logText).ToString("N0", CultureInfo.InvariantCulture));
+        AppendStatusRow(builder, "Log Size", FormatByteSize(Encoding.UTF8.GetByteCount(logText)));
+        builder.AppendLine();
+
+        AppendStatusSection(builder, "ERRORS");
+        AppendStatusRow(builder, "Serial Errors", _serialErrors.ToString("N0", CultureInfo.InvariantCulture));
+        AppendStatusRow(builder, "Last Error", _lastError);
+
+        StatusPanelTextBlock.Text = builder.ToString();
+    }
+
+    private string FormatMcuResetStatus()
+    {
+        return _mcuResetState switch
+        {
+            McuResetState.Pending => _mcuResetRequestedAt.HasValue
+                ? $"Pending ({FormatRelativeTime(_mcuResetRequestedAt)})"
+                : "Pending",
+            McuResetState.Success => _lastMcuResetAt.HasValue
+                ? $"Success ({_lastMcuResetAt.Value:HH:mm:ss})"
+                : "Success",
+            McuResetState.Failed => "Failed",
+            _ => "-"
+        };
+    }
+
+    private static void AppendStatusSection(StringBuilder builder, string title)
+    {
+        builder.Append(title);
+        builder.Append(' ');
+        builder.AppendLine(new string('-', Math.Max(1, 32 - title.Length)));
+    }
+
+    private static void AppendStatusRow(StringBuilder builder, string label, string value)
+    {
+        builder.Append(label.PadRight(16));
+        builder.Append(": ");
+        builder.AppendLine(string.IsNullOrWhiteSpace(value) ? "-" : value);
+    }
+
+    private static string FormatRelativeTime(DateTime? timestamp)
+    {
+        if (!timestamp.HasValue)
+        {
+            return "-";
+        }
+
+        TimeSpan elapsed = DateTime.Now - timestamp.Value;
+        if (elapsed.TotalSeconds < 2)
+        {
+            return "just now";
+        }
+
+        return FormatUptime(elapsed) + " ago";
+    }
+
+    private static string FormatByteSize(long bytes)
+    {
+        if (bytes < 1024)
+        {
+            return bytes.ToString(CultureInfo.InvariantCulture) + " B";
+        }
+
+        double kib = bytes / 1024.0;
+        if (kib < 1024)
+        {
+            return kib.ToString("0.#", CultureInfo.InvariantCulture) + " KB";
+        }
+
+        return (kib / 1024.0).ToString("0.#", CultureInfo.InvariantCulture) + " MB";
     }
 
     private static string FormatUptime(TimeSpan uptime)
@@ -1864,6 +1775,7 @@ public partial class SessionControl : UserControl, IDisposable
         _logEntries.Add(entry);
         AddEntryRuns(entry);
         OutputScrollViewer.ScrollToEnd();
+        UpdateStatusPanel();
     }
 
     private void AppendErrorOutput(string label, string message, DateTime? timestamp = null)
@@ -1879,6 +1791,7 @@ public partial class SessionControl : UserControl, IDisposable
     private void AppendStatusOutput(string label, string message, IBrush foreground)
     {
         string separator = string.IsNullOrWhiteSpace(message) ? "" : " ";
+        ProcessStatusText(label + separator + message + "\n", DateTime.Now);
         AppendOutputSegments(
             [
                 new LogSegment(label, foreground, true),
@@ -1899,6 +1812,7 @@ public partial class SessionControl : UserControl, IDisposable
         _logEntries.Add(entry);
         AddEntryRuns(entry);
         OutputScrollViewer.ScrollToEnd();
+        UpdateStatusPanel();
     }
 
     private void AddEntryRuns(LogEntry entry)
@@ -2026,6 +1940,7 @@ public partial class SessionControl : UserControl, IDisposable
     {
         _logEntries.Clear();
         GetOutputInlines().Clear();
+        UpdateStatusPanel();
     }
 
     private async Task ConfirmAndClearOutput()
@@ -2389,6 +2304,7 @@ public partial class SessionControl : UserControl, IDisposable
     {
         _timestampsEnabled = !_timestampsEnabled;
         RenderOutput();
+        UpdateStatusPanel();
 
         string state = _timestampsEnabled ? "enabled" : "disabled";
         TimestampsToggled?.Invoke(_timestampsEnabled);
@@ -2398,12 +2314,8 @@ public partial class SessionControl : UserControl, IDisposable
 
     public void Dispose()
     {
-        _isDisposing = true;
         _uptimeTimer.Stop();
         _findWindow?.Close();
-        _signalViewerWindow?.Close();
-        _statusPanelWindow?.Close();
-        _serialPlotterWindow?.Close();
         _monitor?.Dispose();
     }
 
@@ -2416,4 +2328,12 @@ public partial class SessionControl : UserControl, IDisposable
         string Text,
         IBrush? Foreground,
         bool Bold);
+
+    private enum McuResetState
+    {
+        None,
+        Pending,
+        Success,
+        Failed
+    }
 }

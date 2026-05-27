@@ -2,9 +2,9 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="serial.Desktop.SessionControl">
     <Grid Name="SessionRootGrid"
-          Margin="24,18,24,24"
+          Margin="24,26,24,24"
           RowDefinitions="Auto,Auto,*,Auto,Auto"
-          RowSpacing="16"
+          RowSpacing="12"
           Background="#020403">
         <TextBlock Text="█   █▀█ █▀▀ █ █▀▀ █▀█ █▀▄▀█&#x0a;█▄▄ █▄█ █▄█ █ █▄▄ █▄█ █ ▀ █"
                    Grid.Row="0"
@@ -14,7 +14,10 @@
                    FontWeight="Bold"
                    LineHeight="24" />
 
-        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8">
+        <StackPanel Grid.Row="1"
+                    Orientation="Horizontal"
+                    Spacing="8"
+                    Margin="0,8,0,0">
             <TextBlock Text="Port:"
                        Foreground="#E8E8E8"
                        VerticalAlignment="Center" />
@@ -50,8 +53,8 @@
 
         <Grid Name="MainContentGrid"
               Grid.Row="2"
-              ColumnDefinitions="*,6,360"
-              ColumnSpacing="0">
+              ColumnDefinitions="*,340"
+              ColumnSpacing="12">
             <Border Grid.Column="0"
                     BorderBrush="#9A9A9A"
                     BorderThickness="1"
@@ -79,104 +82,41 @@
                 </Grid>
             </Border>
 
-            <GridSplitter Name="SignalViewerSplitter"
-                          Grid.Column="1"
-                          Width="6"
-                          ResizeDirection="Columns"
-                          ResizeBehavior="PreviousAndNext"
-                          HorizontalAlignment="Stretch"
-                          VerticalAlignment="Stretch"
-                          Background="Transparent" />
-
-            <Grid Name="SignalViewerPanel"
-                  Grid.Column="2"
-                  RowDefinitions="*"
-                  Margin="10,0,0,0"
-                  HorizontalAlignment="Stretch"
-                  VerticalAlignment="Stretch">
-                <Border Grid.Row="0"
-                        BorderBrush="#9A9A9A"
-                        BorderThickness="1"
-                        Background="#020403"
-                        CornerRadius="3"
-                        Padding="12">
-                    <Grid RowDefinitions="Auto,*,Auto">
-                        <TextBlock Grid.Row="0"
-                                   Text="LOGIC ANALYZER --------------- Time/Div: 2 ms"
-                                   Foreground="#E8E8E8"
-                                   FontWeight="Bold" />
-                        <ScrollViewer Name="WaveformScrollViewer"
-                                      Grid.Row="1"
-                                      Margin="0,10,0,0"
-                                      HorizontalScrollBarVisibility="Auto"
-                                      VerticalScrollBarVisibility="Auto">
-                            <Grid Name="WaveformRowsGrid"
-                                  MinWidth="720" />
-                        </ScrollViewer>
-                        <TextBlock Name="LogicAnalyzerHoverTextBlock"
-                                   Grid.Row="2"
-                                   Margin="0,8,0,0"
-                                   Text="Logic level: -"
-                                   Foreground="#E8E8E8" />
-                    </Grid>
-                </Border>
-            </Grid>
-        </Grid>
-
-        <StackPanel Name="FooterPanel"
-                    Grid.Row="3"
-                    Spacing="16">
             <Border Name="StatusPanel"
-                    IsVisible="False"
+                    Grid.Column="1"
                     BorderBrush="#9A9A9A"
                     BorderThickness="1"
                     Background="#020403"
                     CornerRadius="3"
                     Padding="12">
-                <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
-                      ColumnDefinitions="128,16,*"
-                      RowSpacing="5">
-                    <TextBlock Grid.Row="0" Grid.ColumnSpan="3" Text="STATUS ---------------------------------" Foreground="#E8E8E8" FontWeight="Bold" />
-                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Connection" />
-                    <TextBlock Grid.Row="1" Grid.Column="1" Text=":" />
-                    <TextBlock Grid.Row="1" Grid.Column="2" Name="StatusConnectionTextBlock" Text="Disconnected" />
-                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Port" />
-                    <TextBlock Grid.Row="2" Grid.Column="1" Text=":" />
-                    <TextBlock Grid.Row="2" Grid.Column="2" Name="StatusPortTextBlock" Text="-" />
-                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Baud Rate" />
-                    <TextBlock Grid.Row="3" Grid.Column="1" Text=":" />
-                    <TextBlock Grid.Row="3" Grid.Column="2" Name="StatusBaudTextBlock" Text="-" />
-                    <TextBlock Grid.Row="4" Grid.Column="0" Text="Data Bits" />
-                    <TextBlock Grid.Row="4" Grid.Column="1" Text=":" />
-                    <TextBlock Grid.Row="4" Grid.Column="2" Name="StatusDataBitsTextBlock" Text="8" />
-                    <TextBlock Grid.Row="5" Grid.Column="0" Text="Parity" />
-                    <TextBlock Grid.Row="5" Grid.Column="1" Text=":" />
-                    <TextBlock Grid.Row="5" Grid.Column="2" Name="StatusParityTextBlock" Text="None" />
-                    <TextBlock Grid.Row="6" Grid.Column="0" Text="Stop Bits" />
-                    <TextBlock Grid.Row="6" Grid.Column="1" Text=":" />
-                    <TextBlock Grid.Row="6" Grid.Column="2" Name="StatusStopBitsTextBlock" Text="1" />
-                    <TextBlock Grid.Row="7" Grid.Column="0" Text="Flow Control" />
-                    <TextBlock Grid.Row="7" Grid.Column="1" Text=":" />
-                    <TextBlock Grid.Row="7" Grid.Column="2" Name="StatusFlowControlTextBlock" Text="None" />
-                    <TextBlock Grid.Row="8" Grid.Column="0" Text="Line Ending" />
-                    <TextBlock Grid.Row="8" Grid.Column="1" Text=":" />
-                    <TextBlock Grid.Row="8" Grid.Column="2" Name="StatusLineEndingTextBlock" Text="None" />
-                    <TextBlock Grid.Row="9" Grid.Column="0" Text="MCU Reset" />
-                    <TextBlock Grid.Row="9" Grid.Column="1" Text=":" />
-                    <TextBlock Grid.Row="9" Grid.Column="2" Name="StatusMcuResetTextBlock" Text="-" />
-                    <TextBlock Grid.Row="10" Grid.Column="0" Text="Uptime" />
-                    <TextBlock Grid.Row="10" Grid.Column="1" Text=":" />
-                    <TextBlock Grid.Row="10" Grid.Column="2" Name="StatusUptimeTextBlock" Text="-" />
-                </Grid>
+                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <TextBlock Name="StatusPanelTextBlock"
+                               FontFamily="Menlo, Consolas, monospace"
+                               FontSize="13"
+                               LineHeight="18"
+                               Foreground="#E8E8E8"
+                               TextWrapping="NoWrap" />
+                </ScrollViewer>
             </Border>
+        </Grid>
 
-            <WrapPanel Name="MacroButtonsPanel"
-                       Orientation="Horizontal" />
-        </StackPanel>
+        <WrapPanel Name="MacroButtonsPanel"
+                   Grid.Row="3"
+                   Orientation="Horizontal" />
+
+        <Grid IsVisible="False">
+            <GridSplitter Name="SignalViewerSplitter" />
+            <Grid Name="SignalViewerPanel">
+                <Grid Name="WaveformRowsGrid" />
+                <ScrollViewer Name="WaveformScrollViewer" />
+                <TextBlock Name="LogicAnalyzerHoverTextBlock" />
+            </Grid>
+        </Grid>
 
         <Grid Grid.Row="4"
               RowDefinitions="Auto,Auto"
-              RowSpacing="8">
+              RowSpacing="4">
             <Border Name="MacroAutocompletePanel"
                     Grid.Row="0"
                     IsVisible="False"

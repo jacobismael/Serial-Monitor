@@ -81,6 +81,26 @@ public partial class App : Application
             Header = "Save Log...",
             Gesture = KeyGesture.Parse("Meta+S")
         };
+        NativeMenuItem openCaptureItem = new()
+        {
+            Header = "Open Capture..."
+        };
+        NativeMenuItem saveCaptureItem = new()
+        {
+            Header = "Save Capture..."
+        };
+        NativeMenuItem exportCaptureCsvItem = new()
+        {
+            Header = "Export CSV..."
+        };
+        NativeMenuItem exportCaptureVcdItem = new()
+        {
+            Header = "Export VCD..."
+        };
+        NativeMenuItem exportDecodedCsvItem = new()
+        {
+            Header = "Export Decoded CSV..."
+        };
         NativeMenuItem copySerialMonitorItem = new()
         {
             Header = "Copy Serial Monitor",
@@ -98,22 +118,21 @@ public partial class App : Application
             IsChecked = mainWindow.TimestampsEnabled,
             Gesture = KeyGesture.Parse("Ctrl+T")
         };
-        NativeMenuItem toggleSignalViewerItem = new()
-        {
-            Header = "Show Logic Analyzer",
-            ToggleType = MenuItemToggleType.CheckBox,
-            IsChecked = mainWindow.IsSignalViewerVisible,
-            Gesture = KeyGesture.Parse("Meta+Shift+V")
-        };
         NativeMenuItem showStatusPanelItem = new()
         {
             Header = "Show Status Panel"
         };
-        NativeMenuItem showSerialPlotterItem = new()
+        NativeMenuItem showPlotterStatusPanelItem = new()
         {
-            Header = "Show Serial Plotter",
-            ToggleType = MenuItemToggleType.CheckBox,
-            IsChecked = mainWindow.IsSerialPlotterVisible
+            Header = "Show Plotter Status Panel"
+        };
+        NativeMenuItem showLogicProbeStatusPanelItem = new()
+        {
+            Header = "Show Logic Probe Status Panel"
+        };
+        NativeMenuItem showProtocolAnalyzerItem = new()
+        {
+            Header = "Show Protocol Analyzer"
         };
         NativeMenuItem findItem = new()
         {
@@ -123,6 +142,26 @@ public partial class App : Application
         saveLogItem.Click += async (_, _) =>
         {
             await mainWindow.SaveLogAsync();
+        };
+        openCaptureItem.Click += async (_, _) =>
+        {
+            await mainWindow.OpenLogicCaptureAsync();
+        };
+        saveCaptureItem.Click += async (_, _) =>
+        {
+            await mainWindow.SaveLogicCaptureAsync();
+        };
+        exportCaptureCsvItem.Click += async (_, _) =>
+        {
+            await mainWindow.ExportLogicCaptureCsvAsync();
+        };
+        exportCaptureVcdItem.Click += async (_, _) =>
+        {
+            await mainWindow.ExportLogicCaptureVcdAsync();
+        };
+        exportDecodedCsvItem.Click += async (_, _) =>
+        {
+            await mainWindow.ExportLogicDecodedCsvAsync();
         };
         copySerialMonitorItem.Click += async (_, _) =>
         {
@@ -141,35 +180,38 @@ public partial class App : Application
             bool enabled = mainWindow.ToggleTimestamps();
             toggleTimeItem.IsChecked = enabled;
         };
-        toggleSignalViewerItem.Click += (_, _) =>
-        {
-            bool enabled = mainWindow.ToggleSignalViewer();
-            toggleSignalViewerItem.IsChecked = enabled;
-        };
         showStatusPanelItem.Click += (_, _) =>
         {
             mainWindow.ShowStatusPanel();
         };
-        showSerialPlotterItem.Click += (_, _) =>
+        showPlotterStatusPanelItem.Click += (_, _) =>
         {
-            mainWindow.ShowSerialPlotter();
-            showSerialPlotterItem.IsChecked = mainWindow.IsSerialPlotterVisible;
+            mainWindow.ShowPlotterStatusPanel();
+        };
+        showLogicProbeStatusPanelItem.Click += (_, _) =>
+        {
+            mainWindow.ShowLogicAnalyzerProbeStatusPanel();
+        };
+        showProtocolAnalyzerItem.Click += (_, _) =>
+        {
+            mainWindow.ShowProtocolAnalyzer();
         };
         mainWindow.TimestampsToggled += enabled =>
         {
             toggleTimeItem.IsChecked = enabled;
         };
-        mainWindow.SignalViewerToggled += enabled =>
-        {
-            toggleSignalViewerItem.IsChecked = enabled;
-        };
-        mainWindow.SerialPlotterToggled += visible =>
-        {
-            showSerialPlotterItem.IsChecked = visible;
-        };
         NativeMenu fileMenu = new()
         {
-            Items = { newWindowItem, saveLogItem }
+            Items =
+            {
+                newWindowItem,
+                saveLogItem,
+                openCaptureItem,
+                saveCaptureItem,
+                exportCaptureCsvItem,
+                exportCaptureVcdItem,
+                exportDecodedCsvItem
+            }
         };
         NativeMenu editMenu = new()
         {
@@ -177,7 +219,14 @@ public partial class App : Application
         };
         NativeMenu viewMenu = new()
         {
-            Items = { toggleTimeItem, toggleSignalViewerItem, showStatusPanelItem, showSerialPlotterItem }
+            Items =
+            {
+                toggleTimeItem,
+                showStatusPanelItem,
+                showPlotterStatusPanelItem,
+                showLogicProbeStatusPanelItem,
+                showProtocolAnalyzerItem
+            }
         };
         fileItem.Menu = fileMenu;
         editItem.Menu = editMenu;

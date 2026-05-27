@@ -1,0 +1,74 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="serial.Desktop.ProtocolAnalyzerControl">
+    <Border BorderBrush="#9A9A9A"
+            BorderThickness="1"
+            Background="#020403"
+            CornerRadius="3"
+            Padding="12">
+        <Grid RowDefinitions="Auto,Auto,Auto,*"
+              RowSpacing="8">
+            <Grid Grid.Row="0"
+                  ColumnDefinitions="*,Auto,Auto,Auto"
+                  ColumnSpacing="8">
+                <TextBlock Grid.Column="0"
+                           Text="PROTOCOL ANALYZER -----------------------------------------------"
+                           FontWeight="Bold"
+                           VerticalAlignment="Center" />
+                <ComboBox Name="ProtocolComboBox"
+                          Grid.Column="1"
+                          Width="120"
+                          MinHeight="34" />
+                <Button Name="AutoDetectButton"
+                        Grid.Column="2"
+                        Content="Auto Detect"
+                        MinWidth="116" />
+                <Button Name="DecodeButton"
+                        Grid.Column="3"
+                        Content="Decode"
+                        MinWidth="92" />
+            </Grid>
+
+            <Grid Grid.Row="1"
+                  ColumnDefinitions="Auto,70,Auto,96,Auto,70,Auto,70,Auto,70,Auto,70"
+                  ColumnSpacing="6">
+                <TextBlock Grid.Column="0" Text="RX" VerticalAlignment="Center" />
+                <ComboBox Name="RxChannelComboBox" Grid.Column="1" MinHeight="32" />
+                <TextBlock Grid.Column="2" Text="Baud" VerticalAlignment="Center" />
+                <ComboBox Name="UartBaudComboBox" Grid.Column="3" MinHeight="32" />
+                <TextBlock Grid.Column="4" Text="SDA" VerticalAlignment="Center" />
+                <ComboBox Name="SdaChannelComboBox" Grid.Column="5" MinHeight="32" />
+                <TextBlock Grid.Column="6" Text="SCL" VerticalAlignment="Center" />
+                <ComboBox Name="SclChannelComboBox" Grid.Column="7" MinHeight="32" />
+                <TextBlock Grid.Column="8" Text="SCLK" VerticalAlignment="Center" />
+                <ComboBox Name="SclkChannelComboBox" Grid.Column="9" MinHeight="32" />
+                <TextBlock Grid.Column="10" Text="MOSI" VerticalAlignment="Center" />
+                <ComboBox Name="MosiChannelComboBox" Grid.Column="11" MinHeight="32" />
+            </Grid>
+
+            <Grid Grid.Row="2"
+                  ColumnDefinitions="Auto,70,Auto,70,Auto,92,*,Auto"
+                  ColumnSpacing="6">
+                <TextBlock Grid.Column="0" Text="MISO" VerticalAlignment="Center" />
+                <ComboBox Name="MisoChannelComboBox" Grid.Column="1" MinHeight="32" />
+                <TextBlock Grid.Column="2" Text="CS" VerticalAlignment="Center" />
+                <ComboBox Name="CsChannelComboBox" Grid.Column="3" MinHeight="32" />
+                <TextBlock Grid.Column="4" Text="CAN" VerticalAlignment="Center" />
+                <ComboBox Name="CanBitrateComboBox" Grid.Column="5" MinHeight="32" />
+                <TextBlock Name="DetectionTextBlock"
+                           Grid.Column="6"
+                           Text="No capture loaded."
+                           Foreground="#9A9A9A"
+                           VerticalAlignment="Center" />
+                <Button Name="ExportDecodedCsvButton"
+                        Grid.Column="7"
+                        Content="Export Decoded CSV"
+                        MinWidth="150" />
+            </Grid>
+
+            <ListBox Name="FrameListBox"
+                     Grid.Row="3"
+                     MinHeight="96" />
+        </Grid>
+    </Border>
+</UserControl>

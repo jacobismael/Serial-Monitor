@@ -14,7 +14,7 @@ public partial class SettingsWindow : Window
 {
     private readonly MainWindow? _mainWindow;
     private readonly List<MacroRowControls> _macroRows = [];
-    private readonly List<ProbeRowControls> _probeRows = [];
+    private bool _syncingLogicAnalyzerSettings;
 
     public SettingsWindow()
     {
@@ -48,21 +48,22 @@ public partial class SettingsWindow : Window
             AddMacroRow(macro);
         }
 
-        foreach (WaveformProbeDefinition probe in _mainWindow.WaveformProbes)
-        {
-            AddProbeRow(probe);
-        }
-
+        ConfigureLogicAnalyzerSettings();
         AddMacroButton.Click += (_, _) => AddMacroRow();
-        AddProbeButton.Click += (_, _) => AddProbeRow();
         ApplyButton.Click += (_, _) => ApplySettings();
         CancelButton.Click += (_, _) => Close();
         BrowseLogSaveLocationButton.Click += async (_, _) => await BrowseLogSaveLocationAsync();
+        GeneralSettingsButton.Click += (_, _) => ShowSettingsSection(GeneralSettingsPanel);
+        SerialPlotterSettingsButton.Click += (_, _) => ShowSettingsSection(SerialPlotterSettingsPanel);
+        MacrosSettingsButton.Click += (_, _) => ShowSettingsSection(MacrosSettingsPanel);
+        LogicAnalyzerSettingsButton.Click += (_, _) => ShowSettingsSection(LogicAnalyzerSettingsPanel);
 
         HookTextBoxKeys(FontFamilyTextBox);
         HookTextBoxKeys(LogSaveLocationTextBox);
         HookTextBoxKeys(StartupCommandTextBox);
         HookTextBoxKeys(PlotterLineColorTextBox);
+        HookTextBoxKeys(PlotterSeriesColorsTextBox);
+        ShowSettingsSection(GeneralSettingsPanel);
     }
 
     protected override void OnOpened(System.EventArgs e)
@@ -95,7 +96,8 @@ public partial class SettingsWindow : Window
         {
             ItemsSource = GetMacroEndingOptions(),
             SelectedItem = NormalizeMacroEnding(macro?.Ending),
-            MinHeight = 34
+            MinHeight = 34,
+            MinWidth = 140
         };
         TextBox commandTextBox = new()
         {
@@ -105,7 +107,7 @@ public partial class SettingsWindow : Window
         Button removeButton = new()
         {
             Content = "Remove",
-            MinWidth = 82
+            MinWidth = 110
         };
 
         Grid rowGrid = CreateMacroRowGrid();
@@ -135,109 +137,19 @@ public partial class SettingsWindow : Window
         HookTextBoxKeys(commandTextBox);
     }
 
-    private void AddProbeRow(WaveformProbeDefinition? probe = null)
-    {
-        int rowNumber = _probeRows.Count + 1;
-        TextBox probeTextBox = new()
-        {
-            Text = probe?.Probe ?? $"Probe {rowNumber}",
-            PlaceholderText = $"Probe {rowNumber}"
-        };
-        TextBox signalTextBox = new()
-        {
-            Text = probe?.Signal ?? $"P{rowNumber}",
-            PlaceholderText = "TXD"
-        };
-        TextBox colorTextBox = new()
-        {
-            Text = probe?.Color ?? LocalSettings.GetDefaultProbeColor(rowNumber - 1),
-            PlaceholderText = "#00D4D8"
-        };
-        Border colorSwatch = new()
-        {
-            Width = 24,
-            Height = 24,
-            BorderBrush = Brushes.Gray,
-            BorderThickness = new Thickness(1),
-            Background = CreateColorBrush(colorTextBox.Text)
-        };
-        colorTextBox.TextChanged += (_, _) =>
-        {
-            colorSwatch.Background = CreateColorBrush(colorTextBox.Text);
-        };
-        Grid colorGrid = new()
-        {
-            ColumnDefinitions =
-            {
-                new ColumnDefinition(new GridLength(1, GridUnitType.Star)),
-                new ColumnDefinition(new GridLength(32))
-            },
-            ColumnSpacing = 8
-        };
-        Button removeButton = new()
-        {
-            Content = "Remove",
-            MinWidth = 82
-        };
-
-        Grid rowGrid = CreateRowGrid(120, 120, 120);
-        Grid.SetColumn(probeTextBox, 0);
-        Grid.SetColumn(signalTextBox, 1);
-        Grid.SetColumn(colorTextBox, 0);
-        Grid.SetColumn(colorSwatch, 1);
-        colorGrid.Children.Add(colorTextBox);
-        colorGrid.Children.Add(colorSwatch);
-        Grid.SetColumn(colorGrid, 2);
-        Grid.SetColumn(removeButton, 3);
-        rowGrid.Children.Add(probeTextBox);
-        rowGrid.Children.Add(signalTextBox);
-        rowGrid.Children.Add(colorGrid);
-        rowGrid.Children.Add(removeButton);
-
-        ProbeRowControls row = new(rowGrid, probeTextBox, signalTextBox, colorTextBox);
-        removeButton.Click += (_, _) =>
-        {
-            ProbeRowsPanel.Children.Remove(rowGrid);
-            _probeRows.Remove(row);
-        };
-
-        _probeRows.Add(row);
-        ProbeRowsPanel.Children.Add(rowGrid);
-        HookTextBoxKeys(probeTextBox);
-        HookTextBoxKeys(signalTextBox);
-        HookTextBoxKeys(colorTextBox);
-    }
-
-    private static Grid CreateRowGrid(double first, double second, double third = 0, bool starColumn = false)
-    {
-        Grid grid = new()
-        {
-            ColumnSpacing = 8
-        };
-
-        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(first)));
-        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(second)));
-        grid.ColumnDefinitions.Add(starColumn
-            ? new ColumnDefinition(new GridLength(1, GridUnitType.Star))
-            : new ColumnDefinition(new GridLength(third)));
-        grid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
-
-        return grid;
-    }
-
     private static Grid CreateMacroRowGrid()
     {
         Grid grid = new()
         {
-            ColumnSpacing = 4
+            ColumnSpacing = 8
         };
 
-        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(120)));
-        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(92)));
-        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(56)));
+        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(150)));
+        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(110)));
+        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(74)));
         grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
-        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(92)));
-        grid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
+        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(140)));
+        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(110)));
 
         return grid;
     }
@@ -306,8 +218,8 @@ public partial class SettingsWindow : Window
             _mainWindow.StartupCommand = StartupCommandTextBox.Text ?? "";
             _mainWindow.UpdateStatusPanelSettings(GetStatusPanelSettings());
             _mainWindow.UpdateSerialPlotterSettings(GetSerialPlotterSettings());
+            _mainWindow.UpdateLogicAnalyzerSettings(GetLogicAnalyzerSettings());
             _mainWindow.UpdateMacros(GetMacros());
-            _mainWindow.UpdateWaveformProbes(GetWaveformProbes());
         }
 
         Close();
@@ -361,10 +273,22 @@ public partial class SettingsWindow : Window
 
         PlotterMaxSamplesNumericUpDown.Value = settings.MaxSamples;
         PlotterVisibleSamplesNumericUpDown.Value = settings.VisibleSamples;
+        PlotterSaveFullHistoryCheckBox.IsChecked = settings.SaveFullHistory;
+        PlotterMaxHistorySamplesNumericUpDown.Value = settings.MaxHistorySamples;
+        PlotterXAxisModeComboBox.ItemsSource = new[] { "Samples", "Time" };
+        PlotterXAxisModeComboBox.SelectedItem = settings.XAxisMode;
         PlotterLineColorTextBox.Text = settings.LineColor;
+        PlotterSeriesColorsTextBox.Text = string.Join(",", settings.SeriesColors);
         PlotterAutoScaleCheckBox.IsChecked = settings.AutoScale;
+        PlotterShowGridCheckBox.IsChecked = settings.ShowGrid;
+        PlotterShowPointsCheckBox.IsChecked = settings.ShowPoints;
+        PlotterLineThicknessNumericUpDown.Value = (decimal)settings.LineThickness;
         PlotterMinimumValueNumericUpDown.Value = (decimal)settings.MinimumValue;
         PlotterMaximumValueNumericUpDown.Value = (decimal)settings.MaximumValue;
+        PlotterCsvExportModeComboBox.ItemsSource = new[] { "Visible", "Full History" };
+        PlotterCsvExportModeComboBox.SelectedItem = settings.CsvExportMode;
+        PlotterParserModeComboBox.ItemsSource = new[] { "Auto", "Single Value", "Key-Value", "CSV" };
+        PlotterParserModeComboBox.SelectedItem = settings.ParserMode;
         PlotterLineColorSwatch.Background = CreateColorBrush(settings.LineColor);
 
         PlotterLineColorTextBox.TextChanged += (_, _) =>
@@ -379,13 +303,199 @@ public partial class SettingsWindow : Window
         {
             MaxSamples = DecimalToInt(PlotterMaxSamplesNumericUpDown.Value, 400),
             VisibleSamples = DecimalToInt(PlotterVisibleSamplesNumericUpDown.Value, 160),
+            SaveFullHistory = PlotterSaveFullHistoryCheckBox.IsChecked == true,
+            MaxHistorySamples = DecimalToInt(PlotterMaxHistorySamplesNumericUpDown.Value, 100000),
+            XAxisMode = PlotterXAxisModeComboBox.SelectedItem as string ?? "Samples",
             LineColor = PlotterLineColorTextBox.Text ?? "#00D4D8",
+            SeriesColors = ParseColorList(PlotterSeriesColorsTextBox.Text),
             AutoScale = PlotterAutoScaleCheckBox.IsChecked == true,
+            ShowGrid = PlotterShowGridCheckBox.IsChecked == true,
+            ShowPoints = PlotterShowPointsCheckBox.IsChecked == true,
+            LineThickness = DecimalToDouble(PlotterLineThicknessNumericUpDown.Value, 1.5),
             MinimumValue = DecimalToDouble(PlotterMinimumValueNumericUpDown.Value, 0),
-            MaximumValue = DecimalToDouble(PlotterMaximumValueNumericUpDown.Value, 100)
+            MaximumValue = DecimalToDouble(PlotterMaximumValueNumericUpDown.Value, 100),
+            CsvExportMode = PlotterCsvExportModeComboBox.SelectedItem as string ?? "Visible",
+            ParserMode = PlotterParserModeComboBox.SelectedItem as string ?? "Auto"
         };
         settings.Normalize();
         return settings;
+    }
+
+    private static List<string> ParseColorList(string? value)
+    {
+        return (value ?? "")
+            .Split(',', System.StringSplitOptions.RemoveEmptyEntries | System.StringSplitOptions.TrimEntries)
+            .Where(color => !string.IsNullOrWhiteSpace(color))
+            .ToList();
+    }
+
+    private void ConfigureLogicAnalyzerSettings()
+    {
+        if (_mainWindow == null)
+        {
+            return;
+        }
+
+        LogicAnalyzerControl analyzer = _mainWindow.LogicAnalyzerControl;
+        LogicAnalyzerSettings settings = _mainWindow.LogicAnalyzerSettings;
+        settings.Normalize();
+        LogicAnalyzerBaudComboBox.ItemsSource = analyzer.BaudRates;
+        LogicAnalyzerBaudComboBox.SelectedItem = analyzer.SelectedBaudRate;
+        LogicAnalyzerShowStatusCheckBox.IsChecked = settings.ShowFpgaStatusPanel;
+        LogicAnalyzerShowProtocolCheckBox.IsChecked = settings.ShowProtocolAnalyzer;
+        LogicAnalyzerSampleRateTextBox.Text = settings.DefaultSampleRate.ToString(CultureInfo.InvariantCulture);
+        LogicAnalyzerChannelCountTextBox.Text = settings.DefaultChannelCount.ToString(CultureInfo.InvariantCulture);
+        LogicAnalyzerTriggerChannelTextBox.Text = settings.DefaultTriggerChannel.ToString(CultureInfo.InvariantCulture);
+        LogicAnalyzerTriggerModeTextBox.Text = settings.DefaultTriggerMode;
+        LogicAnalyzerCaptureDepthTextBox.Text = settings.CaptureDepth.ToString(CultureInfo.InvariantCulture);
+        LogicAnalyzerZoomSensitivityTextBox.Text = settings.ZoomSensitivity.ToString(CultureInfo.InvariantCulture);
+        LogicAnalyzerTriggerPositionTextBox.Text = settings.DefaultTriggerPositionPercent.ToString(CultureInfo.InvariantCulture);
+        LogicAnalyzerTriggerCombineComboBox.ItemsSource = new[] { "AND", "OR" };
+        LogicAnalyzerTriggerCombineComboBox.SelectedItem = settings.DefaultTriggerCombineMode;
+        LogicAnalyzerQualificationModeComboBox.ItemsSource = new[] { "Store All Samples", "Store When Condition True" };
+        LogicAnalyzerQualificationModeComboBox.SelectedItem = settings.DefaultCaptureQualificationMode;
+        LogicAnalyzerAutoRetriggerCheckBox.IsChecked = settings.EnableAutoRetriggerByDefault;
+        LogicAnalyzerAutoCaptureLimitComboBox.ItemsSource = new[] { "Infinite", "1", "5", "10", "100" };
+        LogicAnalyzerAutoCaptureLimitComboBox.SelectedItem = settings.DefaultAutoCaptureLimit;
+        LogicAnalyzerCursorSnapCheckBox.IsChecked = settings.DefaultCursorSnapMode;
+        LogicAnalyzerBusRadixComboBox.ItemsSource = new[] { "Binary", "Hex", "Unsigned", "Signed" };
+        LogicAnalyzerBusRadixComboBox.SelectedItem = settings.DefaultBusRadix;
+        LogicAnalyzerSaveDecodedFramesCheckBox.IsChecked = settings.SaveDecodedFramesInCaptureFile;
+        LogicAnalyzerSaveAnnotationsCheckBox.IsChecked = settings.SaveAnnotationsInCaptureFile;
+        LogicAnalyzerProtocolDecoderComboBox.ItemsSource = new[] { "Auto", "UART", "I2C", "SPI", "CAN" };
+        LogicAnalyzerProtocolDecoderComboBox.SelectedItem = settings.DefaultProtocolDecoder;
+        LogicAnalyzerUartBaudTextBox.Text = settings.DefaultUartBaud.ToString(CultureInfo.InvariantCulture);
+        LogicAnalyzerCanBaudTextBox.Text = settings.DefaultCanBaud.ToString(CultureInfo.InvariantCulture);
+        LogicAnalyzerI2cChannelsTextBox.Text = $"{settings.DefaultI2cSdaChannel},{settings.DefaultI2cSclChannel}";
+        LogicAnalyzerSpiChannelsTextBox.Text = string.Join(
+            ",",
+            settings.DefaultSpiSclkChannel,
+            settings.DefaultSpiMosiChannel,
+            settings.DefaultSpiMisoChannel,
+            settings.DefaultSpiCsChannel);
+        RefreshLogicAnalyzerPorts();
+        UpdateLogicAnalyzerConnectionControls();
+
+        LogicAnalyzerPortComboBox.SelectionChanged += (_, _) =>
+        {
+            if (_syncingLogicAnalyzerSettings || analyzer.IsConnected)
+            {
+                return;
+            }
+
+            analyzer.SelectedPort = LogicAnalyzerPortComboBox.SelectedItem as string;
+        };
+        LogicAnalyzerBaudComboBox.SelectionChanged += (_, _) =>
+        {
+            if (_syncingLogicAnalyzerSettings || analyzer.IsConnected)
+            {
+                return;
+            }
+
+            if (LogicAnalyzerBaudComboBox.SelectedItem is int baudRate)
+            {
+                analyzer.SelectedBaudRate = baudRate;
+            }
+        };
+        LogicAnalyzerRefreshPortsButton.Click += (_, _) => RefreshLogicAnalyzerPorts();
+        LogicAnalyzerConnectButton.Click += (_, _) =>
+        {
+            analyzer.ToggleConnectionFromSettings();
+            RefreshLogicAnalyzerPorts();
+            UpdateLogicAnalyzerConnectionControls();
+        };
+    }
+
+    private void RefreshLogicAnalyzerPorts()
+    {
+        if (_mainWindow == null)
+        {
+            return;
+        }
+
+        LogicAnalyzerControl analyzer = _mainWindow.LogicAnalyzerControl;
+        _syncingLogicAnalyzerSettings = true;
+        string? selectedPort = analyzer.SelectedPort;
+        string[] ports = analyzer.RefreshPorts(notify: false);
+        LogicAnalyzerPortComboBox.ItemsSource = ports;
+        if (!string.IsNullOrWhiteSpace(selectedPort) && ports.Contains(selectedPort))
+        {
+            LogicAnalyzerPortComboBox.SelectedItem = selectedPort;
+        }
+        else
+        {
+            LogicAnalyzerPortComboBox.SelectedItem = analyzer.SelectedPort;
+        }
+
+        LogicAnalyzerBaudComboBox.SelectedItem = analyzer.SelectedBaudRate;
+        _syncingLogicAnalyzerSettings = false;
+    }
+
+    private void UpdateLogicAnalyzerConnectionControls()
+    {
+        if (_mainWindow == null)
+        {
+            return;
+        }
+
+        bool isConnected = _mainWindow.LogicAnalyzerControl.IsConnected;
+        LogicAnalyzerConnectButton.Content = isConnected ? "Disconnect" : "Connect";
+        LogicAnalyzerPortComboBox.IsEnabled = !isConnected;
+        LogicAnalyzerBaudComboBox.IsEnabled = !isConnected;
+        LogicAnalyzerRefreshPortsButton.IsEnabled = !isConnected;
+    }
+
+    private LogicAnalyzerSettings GetLogicAnalyzerSettings()
+    {
+        LogicAnalyzerSettings settings = new()
+        {
+            ShowFpgaStatusPanel = LogicAnalyzerShowStatusCheckBox.IsChecked == true,
+            ShowProtocolAnalyzer = LogicAnalyzerShowProtocolCheckBox.IsChecked == true,
+            DefaultSampleRate = ParseInt(LogicAnalyzerSampleRateTextBox.Text, 1000000),
+            DefaultChannelCount = ParseInt(LogicAnalyzerChannelCountTextBox.Text, 8),
+            DefaultTriggerChannel = ParseInt(LogicAnalyzerTriggerChannelTextBox.Text, 0),
+            DefaultTriggerMode = LogicAnalyzerTriggerModeTextBox.Text ?? "None",
+            DefaultProtocolDecoder = LogicAnalyzerProtocolDecoderComboBox.SelectedItem as string ?? "Auto",
+            DefaultUartBaud = ParseInt(LogicAnalyzerUartBaudTextBox.Text, 115200),
+            DefaultCanBaud = ParseInt(LogicAnalyzerCanBaudTextBox.Text, 500000),
+            CaptureDepth = ParseInt(LogicAnalyzerCaptureDepthTextBox.Text, 8192),
+            ZoomSensitivity = ParseDouble(LogicAnalyzerZoomSensitivityTextBox.Text, 1.08),
+            DefaultTriggerPositionPercent = ParseInt(LogicAnalyzerTriggerPositionTextBox.Text, 50),
+            DefaultTriggerCombineMode = LogicAnalyzerTriggerCombineComboBox.SelectedItem as string ?? "AND",
+            DefaultCaptureQualificationMode = LogicAnalyzerQualificationModeComboBox.SelectedItem as string ?? "Store All Samples",
+            EnableAutoRetriggerByDefault = LogicAnalyzerAutoRetriggerCheckBox.IsChecked == true,
+            DefaultAutoCaptureLimit = LogicAnalyzerAutoCaptureLimitComboBox.SelectedItem as string ?? "Infinite",
+            DefaultCursorSnapMode = LogicAnalyzerCursorSnapCheckBox.IsChecked == true,
+            DefaultBusRadix = LogicAnalyzerBusRadixComboBox.SelectedItem as string ?? "Hex",
+            SaveDecodedFramesInCaptureFile = LogicAnalyzerSaveDecodedFramesCheckBox.IsChecked == true,
+            SaveAnnotationsInCaptureFile = LogicAnalyzerSaveAnnotationsCheckBox.IsChecked == true
+        };
+
+        int[] i2cChannels = ParseIntList(LogicAnalyzerI2cChannelsTextBox.Text, [5, 4]);
+        settings.DefaultI2cSdaChannel = i2cChannels.ElementAtOrDefault(0);
+        settings.DefaultI2cSclChannel = i2cChannels.ElementAtOrDefault(1);
+
+        int[] spiChannels = ParseIntList(LogicAnalyzerSpiChannelsTextBox.Text, [6, 7, -1, -1]);
+        settings.DefaultSpiSclkChannel = spiChannels.ElementAtOrDefault(0);
+        settings.DefaultSpiMosiChannel = spiChannels.ElementAtOrDefault(1);
+        settings.DefaultSpiMisoChannel = spiChannels.ElementAtOrDefault(2);
+        settings.DefaultSpiCsChannel = spiChannels.ElementAtOrDefault(3);
+
+        settings.Normalize();
+        return settings;
+    }
+
+    private void ShowSettingsSection(Control visiblePanel)
+    {
+        GeneralSettingsPanel.IsVisible = visiblePanel == GeneralSettingsPanel;
+        SerialPlotterSettingsPanel.IsVisible = visiblePanel == SerialPlotterSettingsPanel;
+        MacrosSettingsPanel.IsVisible = visiblePanel == MacrosSettingsPanel;
+        LogicAnalyzerSettingsPanel.IsVisible = visiblePanel == LogicAnalyzerSettingsPanel;
+
+        GeneralSettingsButton.Opacity = GeneralSettingsPanel.IsVisible ? 1 : 0.65;
+        SerialPlotterSettingsButton.Opacity = SerialPlotterSettingsPanel.IsVisible ? 1 : 0.65;
+        MacrosSettingsButton.Opacity = MacrosSettingsPanel.IsVisible ? 1 : 0.65;
+        LogicAnalyzerSettingsButton.Opacity = LogicAnalyzerSettingsPanel.IsVisible ? 1 : 0.65;
     }
 
     private static int DecimalToInt(decimal? value, int fallback)
@@ -398,18 +508,34 @@ public partial class SettingsWindow : Window
         return value.HasValue ? decimal.ToDouble(value.Value) : fallback;
     }
 
-    private IReadOnlyList<WaveformProbeDefinition> GetWaveformProbes()
+    private static int ParseInt(string? value, int fallback)
     {
-        List<WaveformProbeDefinition> probes = _probeRows
-            .Select(row => new WaveformProbeDefinition
-            {
-                Probe = row.ProbeTextBox.Text ?? "",
-                Signal = row.SignalTextBox.Text ?? "",
-                Color = row.ColorTextBox.Text ?? ""
-            })
-            .ToList();
+        return int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed)
+            ? parsed
+            : fallback;
+    }
 
-        return LocalSettings.NormalizeWaveformProbes(probes);
+    private static double ParseDouble(string? value, double fallback)
+    {
+        return double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out double parsed)
+            ? parsed
+            : fallback;
+    }
+
+    private static int[] ParseIntList(string? value, int[] fallback)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return fallback;
+        }
+
+        int[] parsed = value
+            .Split(',', System.StringSplitOptions.RemoveEmptyEntries | System.StringSplitOptions.TrimEntries)
+            .Select(part => ParseInt(part, int.MinValue))
+            .Where(number => number != int.MinValue)
+            .ToArray();
+
+        return parsed.Length == 0 ? fallback : parsed;
     }
 
     private static string NormalizeMacroType(string? macroType)
@@ -475,10 +601,4 @@ public partial class SettingsWindow : Window
         CheckBox ShowAsButtonCheckBox,
         ComboBox EndingComboBox,
         TextBox CommandTextBox);
-
-    private sealed record ProbeRowControls(
-        Grid Grid,
-        TextBox ProbeTextBox,
-        TextBox SignalTextBox,
-        TextBox ColorTextBox);
 }

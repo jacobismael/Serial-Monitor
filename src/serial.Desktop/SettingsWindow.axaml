@@ -2,101 +2,122 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="serial.Desktop.SettingsWindow"
         Title="Settings"
-        Width="680"
-        Height="520"
-        MinWidth="520"
-        MinHeight="320"
+        Width="900"
+        Height="660"
+        MinWidth="760"
+        MinHeight="560"
         CanResize="True"
         WindowStartupLocation="CenterOwner">
 
     <Grid Margin="20"
-          RowDefinitions="*,Auto"
+          RowDefinitions="Auto,*,Auto"
           RowSpacing="16">
-        <TabControl Grid.Row="0">
-            <TabItem Header="General">
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <StackPanel Margin="0,12,0,0" Spacing="12">
-                        <Border BorderBrush="#9A9A9A"
-                                BorderThickness="1"
-                                CornerRadius="3"
-                                Padding="12">
-                            <StackPanel Spacing="8">
-                                <TextBlock Text="Appearance"
-                                           FontWeight="Bold" />
-                                <TextBlock Text="Font family" />
-                                <TextBox Name="FontFamilyTextBox"
-                                         PlaceholderText="Monocraft, Menlo, Consolas, monospace" />
-                            </StackPanel>
-                        </Border>
+        <Grid Grid.Row="0"
+              ColumnDefinitions="*,*,*,*"
+              ColumnSpacing="8">
+            <Button Name="GeneralSettingsButton"
+                    Grid.Column="0"
+                    Content="General"
+                    HorizontalAlignment="Stretch" />
+            <Button Name="SerialPlotterSettingsButton"
+                    Grid.Column="1"
+                    Content="Serial Plotter"
+                    HorizontalAlignment="Stretch" />
+            <Button Name="MacrosSettingsButton"
+                    Grid.Column="2"
+                    Content="Macros"
+                    HorizontalAlignment="Stretch" />
+            <Button Name="LogicAnalyzerSettingsButton"
+                    Grid.Column="3"
+                    Content="Logic Analyzer"
+                    HorizontalAlignment="Stretch" />
+        </Grid>
 
-                        <Border BorderBrush="#9A9A9A"
-                                BorderThickness="1"
-                                CornerRadius="3"
-                                Padding="12">
-                            <StackPanel Spacing="8">
-                                <TextBlock Text="Files"
-                                           FontWeight="Bold" />
-                                <TextBlock Text="Default log save location" />
-                                <Grid ColumnDefinitions="*,Auto"
-                                      ColumnSpacing="8">
-                                    <TextBox Name="LogSaveLocationTextBox"
-                                             Grid.Column="0"
-                                             PlaceholderText="/Users/you/Documents" />
-                                    <Button Name="BrowseLogSaveLocationButton"
-                                            Grid.Column="1"
-                                            Content="Browse..."
-                                            Width="96" />
-                                </Grid>
-                            </StackPanel>
-                        </Border>
+        <Grid Grid.Row="1">
+            <ScrollViewer Name="GeneralSettingsPanel"
+                          VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="0,12,0,0" Spacing="12">
+                    <Border BorderBrush="#9A9A9A"
+                            BorderThickness="1"
+                            CornerRadius="3"
+                            Padding="12">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Appearance"
+                                       FontWeight="Bold" />
+                            <TextBlock Text="Font family" />
+                            <TextBox Name="FontFamilyTextBox"
+                                     PlaceholderText="Monocraft, Menlo, Consolas, monospace" />
+                        </StackPanel>
+                    </Border>
 
-                        <Border BorderBrush="#9A9A9A"
-                                BorderThickness="1"
-                                CornerRadius="3"
-                                Padding="12">
-                            <StackPanel Spacing="8">
-                                <TextBlock Text="Startup"
-                                           FontWeight="Bold" />
-                                <TextBlock Text="Startup command" />
-                                <TextBox Name="StartupCommandTextBox"
-                                         PlaceholderText="/path/to/tool --arg" />
-                            </StackPanel>
-                        </Border>
+                    <Border BorderBrush="#9A9A9A"
+                            BorderThickness="1"
+                            CornerRadius="3"
+                            Padding="12">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Files"
+                                       FontWeight="Bold" />
+                            <TextBlock Text="Default log save location" />
+                            <Grid ColumnDefinitions="*,Auto"
+                                  ColumnSpacing="8">
+                                <TextBox Name="LogSaveLocationTextBox"
+                                         Grid.Column="0"
+                                         PlaceholderText="/Users/you/Documents" />
+                                <Button Name="BrowseLogSaveLocationButton"
+                                        Grid.Column="1"
+                                        Content="Browse..."
+                                        Width="96" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
 
-                        <Border BorderBrush="#9A9A9A"
-                                BorderThickness="1"
-                                CornerRadius="3"
-                                Padding="12">
-                            <StackPanel Spacing="8">
-                                <TextBlock Text="Status Panel"
-                                           FontWeight="Bold" />
-                                <Grid ColumnDefinitions="*,*,*,*"
-                                      ColumnSpacing="8">
-                                    <StackPanel Grid.Column="0" Spacing="4">
-                                        <TextBlock Text="Data bits" />
-                                        <ComboBox Name="StatusDataBitsComboBox" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="1" Spacing="4">
-                                        <TextBlock Text="Parity" />
-                                        <ComboBox Name="StatusParityComboBox" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="2" Spacing="4">
-                                        <TextBlock Text="Stop bits" />
-                                        <ComboBox Name="StatusStopBitsComboBox" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="3" Spacing="4">
-                                        <TextBlock Text="Flow control" />
-                                        <ComboBox Name="StatusFlowControlComboBox" />
-                                    </StackPanel>
-                                </Grid>
-                            </StackPanel>
-                        </Border>
-                    </StackPanel>
-                </ScrollViewer>
-            </TabItem>
+                    <Border BorderBrush="#9A9A9A"
+                            BorderThickness="1"
+                            CornerRadius="3"
+                            Padding="12">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Startup"
+                                       FontWeight="Bold" />
+                            <TextBlock Text="Startup command" />
+                            <TextBox Name="StartupCommandTextBox"
+                                     PlaceholderText="/path/to/tool --arg" />
+                        </StackPanel>
+                    </Border>
 
-            <TabItem Header="Serial Plotter">
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <Border BorderBrush="#9A9A9A"
+                            BorderThickness="1"
+                            CornerRadius="3"
+                            Padding="12">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Serial Status"
+                                       FontWeight="Bold" />
+                            <Grid ColumnDefinitions="*,*,*,*"
+                                  ColumnSpacing="8">
+                                <StackPanel Grid.Column="0" Spacing="4">
+                                    <TextBlock Text="Data bits" />
+                                    <ComboBox Name="StatusDataBitsComboBox" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Spacing="4">
+                                    <TextBlock Text="Parity" />
+                                    <ComboBox Name="StatusParityComboBox" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Spacing="4">
+                                    <TextBlock Text="Stop bits" />
+                                    <ComboBox Name="StatusStopBitsComboBox" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="3" Spacing="4">
+                                    <TextBlock Text="Flow control" />
+                                    <ComboBox Name="StatusFlowControlComboBox" />
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+
+            <ScrollViewer Name="SerialPlotterSettingsPanel"
+                          IsVisible="False"
+                          VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="0,12,0,0" Spacing="12">
                     <Border BorderBrush="#9A9A9A"
                             BorderThickness="1"
@@ -118,8 +139,25 @@
                                     <TextBlock Text="Visible samples" />
                                     <NumericUpDown Name="PlotterVisibleSamplesNumericUpDown"
                                                    Minimum="10"
-                                                   Maximum="10000"
+                                                   Maximum="100000"
                                                    Increment="10" />
+                                </StackPanel>
+                            </Grid>
+                            <CheckBox Name="PlotterSaveFullHistoryCheckBox"
+                                      Content="Save full history" />
+                            <Grid ColumnDefinitions="*,*"
+                                  ColumnSpacing="8">
+                                <StackPanel Grid.Column="0" Spacing="4">
+                                    <TextBlock Text="Max history samples" />
+                                    <NumericUpDown Name="PlotterMaxHistorySamplesNumericUpDown"
+                                                   Minimum="10"
+                                                   Maximum="1000000"
+                                                   Increment="100" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Spacing="4">
+                                    <TextBlock Text="X axis mode" />
+                                    <ComboBox Name="PlotterXAxisModeComboBox"
+                                              MinHeight="34" />
                                 </StackPanel>
                             </Grid>
                         </StackPanel>
@@ -144,8 +182,27 @@
                                         BorderBrush="#9A9A9A"
                                         BorderThickness="1" />
                             </Grid>
+                            <TextBlock Text="Series colors" />
+                            <TextBox Name="PlotterSeriesColorsTextBox"
+                                     PlaceholderText="#00D4D8,#E8E8E8,#7CFF68,#F7D154" />
                             <CheckBox Name="PlotterAutoScaleCheckBox"
                                       Content="Auto scale Y axis" />
+                            <Grid ColumnDefinitions="*,*,*"
+                                  ColumnSpacing="8">
+                                <CheckBox Name="PlotterShowGridCheckBox"
+                                          Grid.Column="0"
+                                          Content="Show grid" />
+                                <CheckBox Name="PlotterShowPointsCheckBox"
+                                          Grid.Column="1"
+                                          Content="Show points" />
+                                <StackPanel Grid.Column="2" Spacing="4">
+                                    <TextBlock Text="Line thickness" />
+                                    <NumericUpDown Name="PlotterLineThicknessNumericUpDown"
+                                                   Minimum="0.5"
+                                                   Maximum="6"
+                                                   Increment="0.5" />
+                                </StackPanel>
+                            </Grid>
                             <Grid ColumnDefinitions="*,*"
                                   ColumnSpacing="8">
                                 <StackPanel Grid.Column="0" Spacing="4">
@@ -163,70 +220,240 @@
                                                    Increment="1" />
                                 </StackPanel>
                             </Grid>
+                            <Grid ColumnDefinitions="*,*"
+                                  ColumnSpacing="8">
+                                <StackPanel Grid.Column="0" Spacing="4">
+                                    <TextBlock Text="CSV export mode" />
+                                    <ComboBox Name="PlotterCsvExportModeComboBox"
+                                              MinHeight="34" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Spacing="4">
+                                    <TextBlock Text="Parser mode" />
+                                    <ComboBox Name="PlotterParserModeComboBox"
+                                              MinHeight="34" />
+                                </StackPanel>
+                            </Grid>
                         </StackPanel>
                     </Border>
                 </StackPanel>
+            </ScrollViewer>
+
+            <Grid Name="MacrosSettingsPanel"
+                  IsVisible="False"
+                  Margin="0,12,0,0"
+                  RowDefinitions="Auto,*,Auto"
+                  RowSpacing="8">
+                <Grid Grid.Row="0"
+                      ColumnDefinitions="150,110,74,*,140,110"
+                      ColumnSpacing="8">
+                    <TextBlock Grid.Column="0"
+                               Text="Name" />
+                    <TextBlock Grid.Column="1"
+                               Text="Type" />
+                    <TextBlock Grid.Column="2"
+                               Text="Button"
+                               HorizontalAlignment="Center" />
+                    <TextBlock Grid.Column="3"
+                               Text="Command" />
+                    <TextBlock Grid.Column="4"
+                               Text="Ending"
+                               HorizontalAlignment="Center" />
+                </Grid>
+                <ScrollViewer Grid.Row="1"
+                              VerticalScrollBarVisibility="Auto">
+                    <StackPanel Name="MacroRowsPanel"
+                                Spacing="8" />
                 </ScrollViewer>
-            </TabItem>
+                <Button Name="AddMacroButton"
+                        Grid.Row="2"
+                        Content="Add Macro"
+                        HorizontalAlignment="Left" />
+            </Grid>
 
-            <TabItem Header="Macros">
-                <Grid Margin="0,12,0,0"
-                      RowDefinitions="Auto,*,Auto"
-                      RowSpacing="8">
-                    <Grid Grid.Row="0"
-                          ColumnDefinitions="120,92,56,*,92,Auto"
-                          ColumnSpacing="4">
-                        <TextBlock Grid.Column="0"
-                                   Text="Name" />
-                        <TextBlock Grid.Column="1"
-                                   Text="Type" />
-                        <TextBlock Grid.Column="2"
-                                   Text="Button" />
-                        <TextBlock Grid.Column="3"
-                                   Text="Command" />
-                        <TextBlock Grid.Column="4"
-                                   Text="Ending" />
-                    </Grid>
-                    <ScrollViewer Grid.Row="1"
-                                  VerticalScrollBarVisibility="Auto">
-                        <StackPanel Name="MacroRowsPanel"
-                                    Spacing="8" />
-                    </ScrollViewer>
-                    <Button Name="AddMacroButton"
-                            Grid.Row="2"
-                            Content="Add Macro"
-                            HorizontalAlignment="Left" />
-                </Grid>
-            </TabItem>
+            <ScrollViewer Name="LogicAnalyzerSettingsPanel"
+                          IsVisible="False"
+                          VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="0,12,0,0"
+                            Spacing="12">
+                    <Border BorderBrush="#9A9A9A"
+                            BorderThickness="1"
+                            CornerRadius="3"
+                            Padding="12">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Connection"
+                                       FontWeight="Bold" />
+                            <Grid ColumnDefinitions="*,*,Auto,Auto"
+                                  ColumnSpacing="8">
+                                <StackPanel Grid.Column="0" Spacing="4">
+                                    <TextBlock Text="Port" />
+                                    <ComboBox Name="LogicAnalyzerPortComboBox"
+                                              MinHeight="34" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Spacing="4">
+                                    <TextBlock Text="Baud rate" />
+                                    <ComboBox Name="LogicAnalyzerBaudComboBox"
+                                              MinHeight="34" />
+                                </StackPanel>
+                                <Button Name="LogicAnalyzerRefreshPortsButton"
+                                        Grid.Column="2"
+                                        Content="Refresh"
+                                        MinWidth="96"
+                                        VerticalAlignment="Bottom" />
+                                <Button Name="LogicAnalyzerConnectButton"
+                                        Grid.Column="3"
+                                        Content="Connect"
+                                        MinWidth="112"
+                                        VerticalAlignment="Bottom" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
 
-            <TabItem Header="Waveform">
-                <Grid Margin="0,12,0,0"
-                      RowDefinitions="Auto,*,Auto"
-                      RowSpacing="8">
-                    <Grid Grid.Row="0"
-                          ColumnDefinitions="120,120,120,Auto"
-                          ColumnSpacing="8">
-                        <TextBlock Grid.Column="0"
-                                   Text="Probe" />
-                        <TextBlock Grid.Column="1"
-                                   Text="Signal" />
-                        <TextBlock Grid.Column="2"
-                                   Text="Color" />
-                    </Grid>
-                    <ScrollViewer Grid.Row="1"
-                                  VerticalScrollBarVisibility="Auto">
-                        <StackPanel Name="ProbeRowsPanel"
-                                    Spacing="8" />
-                    </ScrollViewer>
-                    <Button Name="AddProbeButton"
-                            Grid.Row="2"
-                            Content="Add Probe"
-                            HorizontalAlignment="Left" />
-                </Grid>
-            </TabItem>
-        </TabControl>
+                    <Border BorderBrush="#9A9A9A"
+                            BorderThickness="1"
+                            CornerRadius="3"
+                            Padding="12">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Capture"
+                                       FontWeight="Bold" />
+                            <Grid ColumnDefinitions="*,*"
+                                  ColumnSpacing="8">
+                                <CheckBox Name="LogicAnalyzerShowStatusCheckBox"
+                                          Grid.Column="0"
+                                          Content="Show FPGA status panel by default" />
+                                <CheckBox Name="LogicAnalyzerShowProtocolCheckBox"
+                                          Grid.Column="1"
+                                          Content="Show protocol analyzer by default" />
+                            </Grid>
+                            <Grid ColumnDefinitions="*,*,*,*"
+                                  ColumnSpacing="8">
+                                <StackPanel Grid.Column="0" Spacing="4">
+                                    <TextBlock Text="Sample rate" />
+                                    <TextBox Name="LogicAnalyzerSampleRateTextBox"
+                                             PlaceholderText="1000000" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Spacing="4">
+                                    <TextBlock Text="Channels" />
+                                    <TextBox Name="LogicAnalyzerChannelCountTextBox"
+                                             PlaceholderText="8 or 16" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Spacing="4">
+                                    <TextBlock Text="Trigger channel" />
+                                    <TextBox Name="LogicAnalyzerTriggerChannelTextBox"
+                                             PlaceholderText="0" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="3" Spacing="4">
+                                    <TextBlock Text="Trigger mode" />
+                                    <TextBox Name="LogicAnalyzerTriggerModeTextBox"
+                                             PlaceholderText="None, Rising, Falling, High, Low" />
+                                </StackPanel>
+                            </Grid>
+                            <Grid ColumnDefinitions="*,*"
+                                  ColumnSpacing="8">
+                                <StackPanel Grid.Column="0" Spacing="4">
+                                    <TextBlock Text="Capture depth" />
+                                    <TextBox Name="LogicAnalyzerCaptureDepthTextBox"
+                                             PlaceholderText="8192" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Spacing="4">
+                                    <TextBlock Text="Zoom sensitivity" />
+                                    <TextBox Name="LogicAnalyzerZoomSensitivityTextBox"
+                                             PlaceholderText="1.08" />
+                                </StackPanel>
+                            </Grid>
+                            <Grid ColumnDefinitions="*,*,*"
+                                  ColumnSpacing="8">
+                                <StackPanel Grid.Column="0" Spacing="4">
+                                    <TextBlock Text="Trigger position %" />
+                                    <TextBox Name="LogicAnalyzerTriggerPositionTextBox"
+                                             PlaceholderText="50" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Spacing="4">
+                                    <TextBlock Text="Trigger combine" />
+                                    <ComboBox Name="LogicAnalyzerTriggerCombineComboBox"
+                                              MinHeight="34" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Spacing="4">
+                                    <TextBlock Text="Qualification mode" />
+                                    <ComboBox Name="LogicAnalyzerQualificationModeComboBox"
+                                              MinHeight="34" />
+                                </StackPanel>
+                            </Grid>
+                            <Grid ColumnDefinitions="*,*,*"
+                                  ColumnSpacing="8">
+                                <CheckBox Name="LogicAnalyzerAutoRetriggerCheckBox"
+                                          Grid.Column="0"
+                                          Content="Enable auto re-trigger by default" />
+                                <StackPanel Grid.Column="1" Spacing="4">
+                                    <TextBlock Text="Auto capture limit" />
+                                    <ComboBox Name="LogicAnalyzerAutoCaptureLimitComboBox"
+                                              MinHeight="34" />
+                                </StackPanel>
+                                <CheckBox Name="LogicAnalyzerCursorSnapCheckBox"
+                                          Grid.Column="2"
+                                          Content="Snap cursors to edges by default" />
+                            </Grid>
+                            <Grid ColumnDefinitions="*,*,*"
+                                  ColumnSpacing="8">
+                                <StackPanel Grid.Column="0" Spacing="4">
+                                    <TextBlock Text="Default bus radix" />
+                                    <ComboBox Name="LogicAnalyzerBusRadixComboBox"
+                                              MinHeight="34" />
+                                </StackPanel>
+                                <CheckBox Name="LogicAnalyzerSaveDecodedFramesCheckBox"
+                                          Grid.Column="1"
+                                          Content="Save decoded frames in capture file" />
+                                <CheckBox Name="LogicAnalyzerSaveAnnotationsCheckBox"
+                                          Grid.Column="2"
+                                          Content="Save annotations in capture file" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
 
-        <StackPanel Grid.Row="1"
+                    <Border BorderBrush="#9A9A9A"
+                            BorderThickness="1"
+                            CornerRadius="3"
+                            Padding="12">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Protocol Defaults"
+                                       FontWeight="Bold" />
+                            <Grid ColumnDefinitions="*,*,*,*"
+                                  ColumnSpacing="8">
+                                <StackPanel Grid.Column="0" Spacing="4">
+                                    <TextBlock Text="Decoder" />
+                                    <ComboBox Name="LogicAnalyzerProtocolDecoderComboBox"
+                                              MinHeight="34" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Spacing="4">
+                                    <TextBlock Text="UART baud" />
+                                    <TextBox Name="LogicAnalyzerUartBaudTextBox"
+                                             PlaceholderText="115200" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Spacing="4">
+                                    <TextBlock Text="CAN baud" />
+                                    <TextBox Name="LogicAnalyzerCanBaudTextBox"
+                                             PlaceholderText="500000" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="3" Spacing="4">
+                                    <TextBlock Text="I2C SDA/SCL" />
+                                    <TextBox Name="LogicAnalyzerI2cChannelsTextBox"
+                                             PlaceholderText="5,4" />
+                                </StackPanel>
+                            </Grid>
+                            <Grid ColumnDefinitions="*,*"
+                                  ColumnSpacing="8">
+                                <StackPanel Grid.Column="0" Spacing="4">
+                                    <TextBlock Text="SPI SCLK/MOSI/MISO/CS" />
+                                    <TextBox Name="LogicAnalyzerSpiChannelsTextBox"
+                                             PlaceholderText="6,7,-1,-1" />
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+
+        <StackPanel Grid.Row="2"
                     Orientation="Horizontal"
                     HorizontalAlignment="Right"
                     Spacing="8">

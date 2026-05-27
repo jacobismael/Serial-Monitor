@@ -32,6 +32,7 @@ public sealed class SerialMonitor : IDisposable
     private bool _disposed;
 
     public event Action<string>? DataReceived;
+    public event Action<string>? RawDataReceived;
     public event Action<Exception>? ErrorReceived;
 
     public bool IsOpen => _serial?.IsOpen == true;
@@ -161,6 +162,7 @@ public sealed class SerialMonitor : IDisposable
         {
             string data = _serial.ReadExisting();
             if (string.IsNullOrEmpty(data)) return;
+            RawDataReceived?.Invoke(data);
             ProcessReceivedData(data);
         }
         catch (Exception ex)

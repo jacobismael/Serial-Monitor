@@ -16,6 +16,7 @@ public partial class MainWindow : Window
     private const string AppTitle = "Logicom";
     private SettingsWindow? _settingsWindow;
     private LocalSettings _settings = new();
+    private AppMode _activeMode = AppMode.SerialMonitor;
 
     public event Action? NewWindowRequested;
     public event Action<bool>? TimestampsToggled;
@@ -25,7 +26,10 @@ public partial class MainWindow : Window
     public event Action<bool>? SerialPlotterToggled;
 
     private SessionControl _mainSessionControl = null!;
+    private LogicAnalyzerControl _logicAnalyzerControl = null!;
+    private SerialPlotterControl _plotterControl = null!;
     public SessionControl ActiveSessionControl => _mainSessionControl;
+    public LogicAnalyzerControl LogicAnalyzerControl => _logicAnalyzerControl;
 
     public string AppFontFamily
     {
@@ -70,11 +74,12 @@ public partial class MainWindow : Window
     public IReadOnlyList<WaveformProbeDefinition> WaveformProbes => _settings.WaveformProbes;
     public StatusPanelSettings StatusPanelSettings => _settings.StatusPanel;
     public SerialPlotterSettings SerialPlotterSettings => _settings.SerialPlotter;
+    public LogicAnalyzerSettings LogicAnalyzerSettings => _settings.LogicAnalyzer;
     public bool TimestampsEnabled => _mainSessionControl.TimestampsEnabled;
-    public bool IsSignalViewerVisible => _mainSessionControl.IsSignalViewerVisible;
-    public bool IsSignalViewerDetached => _mainSessionControl.IsSignalViewerDetached;
+    public bool IsSignalViewerVisible => false;
+    public bool IsSignalViewerDetached => false;
     public bool IsStatusPanelDetached => _mainSessionControl.IsStatusPanelDetached;
-    public bool IsSerialPlotterVisible => _mainSessionControl.IsSerialPlotterVisible;
+    public bool IsSerialPlotterVisible => _activeMode == AppMode.Plotter;
 
     public MainWindow()
     {
@@ -82,15 +87,20 @@ public partial class MainWindow : Window
 
         _mainSessionControl = this.FindControl<SessionControl>("MainSessionControl")
             ?? throw new InvalidOperationException("MainSessionControl not found.");
+        _logicAnalyzerControl = this.FindControl<LogicAnalyzerControl>("MainLogicAnalyzerControl")
+            ?? throw new InvalidOperationException("MainLogicAnalyzerControl not found.");
+        _plotterControl = this.FindControl<SerialPlotterControl>("MainPlotterControl")
+            ?? throw new InvalidOperationException("MainPlotterControl not found.");
 
         _settings = LocalSettings.Load();
         AppFontFamily = _settings.FontFamily;
 
         DataContext = this;
         _mainSessionControl.UpdateMacros(_settings.Macros);
-        _mainSessionControl.UpdateWaveformProbes(_settings.WaveformProbes);
         _mainSessionControl.UpdateStatusPanelSettings(_settings.StatusPanel);
         _mainSessionControl.UpdateSerialPlotterSettings(_settings.SerialPlotter);
+        _plotterControl.UpdateSettings(_settings.SerialPlotter);
+        _logicAnalyzerControl.UpdateSettings(_settings.LogicAnalyzer);
         _mainSessionControl.RunStartupCommand(_settings.StartupCommand);
         _mainSessionControl.SignalViewerDetachedChanged += detached =>
         {
@@ -105,12 +115,24 @@ public partial class MainWindow : Window
         {
             SerialPlotterToggled?.Invoke(visible);
         };
+        _mainSessionControl.SerialDataReceived += data =>
+        {
+            _plotterControl.ProcessSerialData(data);
+        };
         _mainSessionControl.UtilityWindowCreated += window =>
         {
             (Application.Current as App)?.AttachWindowMenu(window, this);
         };
-        _mainSessionControl.ConnectionChanged += UpdateTitle;
+        _mainSessionControl.ConnectionChanged += (portName, baudRate) =>
+        {
+            UpdateTitle(portName, baudRate);
+            _plotterControl.UpdateSerialConnection(portName, baudRate);
+        };
         _mainSessionControl.StatusSettingsRequested += ShowSettingsWindow;
+        SerialMonitorModeButton.Click += (_, _) => SetMode(AppMode.SerialMonitor);
+        PlotterModeButton.Click += (_, _) => SetMode(AppMode.Plotter);
+        LogicAnalyzerModeButton.Click += (_, _) => SetMode(AppMode.LogicAnalyzer);
+        SetMode(AppMode.SerialMonitor);
         UpdateTitle(null, null);
         TimestampsToggled?.Invoke(_mainSessionControl.TimestampsEnabled);
 
@@ -130,13 +152,6 @@ public partial class MainWindow : Window
             {
                 e.Handled = true;
                 NewWindowRequested?.Invoke();
-            }
-            else if (e.Key == Key.V
-                && e.KeyModifiers.HasFlag(KeyModifiers.Meta)
-                && e.KeyModifiers.HasFlag(KeyModifiers.Shift))
-            {
-                e.Handled = true;
-                ToggleSignalViewer();
             }
         };
     }
@@ -165,7 +180,6 @@ public partial class MainWindow : Window
     {
         _settings.WaveformProbes = LocalSettings.NormalizeWaveformProbes(probes);
         LocalSettings.Save(_settings);
-        _mainSessionControl.UpdateWaveformProbes(_settings.WaveformProbes);
     }
 
     public void UpdateStatusPanelSettings(StatusPanelSettings statusPanelSettings)
@@ -182,6 +196,15 @@ public partial class MainWindow : Window
         _settings.SerialPlotter = serialPlotterSettings;
         LocalSettings.Save(_settings);
         _mainSessionControl.UpdateSerialPlotterSettings(_settings.SerialPlotter);
+        _plotterControl.UpdateSettings(_settings.SerialPlotter);
+    }
+
+    public void UpdateLogicAnalyzerSettings(LogicAnalyzerSettings logicAnalyzerSettings)
+    {
+        logicAnalyzerSettings.Normalize();
+        _settings.LogicAnalyzer = logicAnalyzerSettings;
+        LocalSettings.Save(_settings);
+        _logicAnalyzerControl.UpdateSettings(_settings.LogicAnalyzer);
     }
 
     public void ShowSettingsWindow()
@@ -205,26 +228,93 @@ public partial class MainWindow : Window
     {
         _settingsWindow?.Close();
         _mainSessionControl.Dispose();
+        _logicAnalyzerControl.Dispose();
         base.OnClosed(e);
     }
 
     public async Task ShowFindWindowAsync()
     {
+        if (_activeMode != AppMode.SerialMonitor)
+        {
+            return;
+        }
+
         await ActiveSessionControl.ShowFindWindowAsync();
     }
 
     public async Task SaveLogAsync()
     {
+        if (_activeMode != AppMode.SerialMonitor)
+        {
+            return;
+        }
+
         await ActiveSessionControl.SaveLogAsync();
+    }
+
+    public async Task SaveLogicCaptureAsync()
+    {
+        if (_activeMode != AppMode.LogicAnalyzer)
+        {
+            return;
+        }
+
+        await _logicAnalyzerControl.SaveCaptureProjectAsync();
+    }
+
+    public async Task OpenLogicCaptureAsync()
+    {
+        SetMode(AppMode.LogicAnalyzer);
+        await _logicAnalyzerControl.OpenCaptureProjectAsync();
+    }
+
+    public async Task ExportLogicCaptureCsvAsync()
+    {
+        if (_activeMode != AppMode.LogicAnalyzer)
+        {
+            return;
+        }
+
+        await _logicAnalyzerControl.ExportCaptureAsync("csv");
+    }
+
+    public async Task ExportLogicCaptureVcdAsync()
+    {
+        if (_activeMode != AppMode.LogicAnalyzer)
+        {
+            return;
+        }
+
+        await _logicAnalyzerControl.ExportCaptureAsync("vcd");
+    }
+
+    public async Task ExportLogicDecodedCsvAsync()
+    {
+        if (_activeMode != AppMode.LogicAnalyzer)
+        {
+            return;
+        }
+
+        await _logicAnalyzerControl.ExportDecodedCsvAsync();
     }
 
     public async Task CopySerialMonitorAsync()
     {
+        if (_activeMode != AppMode.SerialMonitor)
+        {
+            return;
+        }
+
         await ActiveSessionControl.CopySerialMonitorAsync();
     }
 
     public bool ToggleTimestamps()
     {
+        if (_activeMode != AppMode.SerialMonitor)
+        {
+            return false;
+        }
+
         bool enabled = ActiveSessionControl.ToggleTimestamps();
         TimestampsToggled?.Invoke(enabled);
         return enabled;
@@ -232,26 +322,46 @@ public partial class MainWindow : Window
 
     public bool ToggleSignalViewer()
     {
-        bool enabled = ActiveSessionControl.ToggleSignalViewer();
-        SignalViewerToggled?.Invoke(enabled);
-        return enabled;
+        return false;
     }
 
     public bool ToggleSignalViewerDetached()
     {
-        bool detached = ActiveSessionControl.ToggleSignalViewerDetached();
-        SignalViewerDetachedToggled?.Invoke(detached);
-        SignalViewerToggled?.Invoke(ActiveSessionControl.IsSignalViewerVisible);
-        return detached;
+        return false;
     }
 
     public void ShowStatusPanel()
     {
+        if (_activeMode != AppMode.SerialMonitor)
+        {
+            return;
+        }
+
         ActiveSessionControl.ShowStatusPanel();
+    }
+
+    public void ShowPlotterStatusPanel()
+    {
+        _plotterControl.ShowStatusPanel();
+    }
+
+    public void ShowLogicAnalyzerProbeStatusPanel()
+    {
+        _logicAnalyzerControl.ShowProbeStatusPanel();
+    }
+
+    public void ShowProtocolAnalyzer()
+    {
+        _logicAnalyzerControl.ShowProtocolAnalyzer();
     }
 
     public bool ToggleStatusPanelDetached()
     {
+        if (_activeMode != AppMode.SerialMonitor)
+        {
+            return false;
+        }
+
         bool detached = ActiveSessionControl.ToggleStatusPanelDetached();
         StatusPanelDetachedToggled?.Invoke(detached);
         return detached;
@@ -259,8 +369,8 @@ public partial class MainWindow : Window
 
     public void ShowSerialPlotter()
     {
-        ActiveSessionControl.ShowSerialPlotter();
-        SerialPlotterToggled?.Invoke(ActiveSessionControl.IsSerialPlotterVisible);
+        SetMode(AppMode.Plotter);
+        SerialPlotterToggled?.Invoke(true);
     }
 
     private void UpdateTitle(string? portName, int? baudRate)
@@ -268,5 +378,28 @@ public partial class MainWindow : Window
         Title = !string.IsNullOrWhiteSpace(portName) && baudRate.HasValue
             ? $"{AppTitle} - {portName} @ {baudRate.Value}"
             : AppTitle;
+    }
+
+    private void SetMode(AppMode mode)
+    {
+        _activeMode = mode;
+        MainSessionControl.IsVisible = mode == AppMode.SerialMonitor;
+        MainPlotterControl.IsVisible = mode == AppMode.Plotter;
+        MainLogicAnalyzerControl.IsVisible = mode == AppMode.LogicAnalyzer;
+        UpdateModeButtonState();
+    }
+
+    private void UpdateModeButtonState()
+    {
+        SerialMonitorModeButton.Opacity = _activeMode == AppMode.SerialMonitor ? 1 : 0.65;
+        PlotterModeButton.Opacity = _activeMode == AppMode.Plotter ? 1 : 0.65;
+        LogicAnalyzerModeButton.Opacity = _activeMode == AppMode.LogicAnalyzer ? 1 : 0.65;
+    }
+
+    private enum AppMode
+    {
+        SerialMonitor,
+        Plotter,
+        LogicAnalyzer
     }
 }

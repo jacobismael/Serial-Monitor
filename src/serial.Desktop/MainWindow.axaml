@@ -4,11 +4,43 @@
         x:Class="serial.Desktop.MainWindow"
         x:DataType="local:MainWindow"
         Title="Logicom"
-        Width="950"
-        Height="600"
+        Width="1200"
+        Height="720"
         MinWidth="1000"
         MinHeight="450"
         WindowStartupLocation="CenterScreen">
 
-    <local:SessionControl x:Name="MainSessionControl" />
+    <Grid RowDefinitions="Auto,*"
+          Background="#020403">
+        <Border Grid.Row="0"
+                BorderBrush="#333333"
+                BorderThickness="0,0,0,1"
+                Padding="16,12">
+            <Grid ColumnDefinitions="*,*,*"
+                  ColumnSpacing="8">
+                <Button Name="SerialMonitorModeButton"
+                        Grid.Column="0"
+                        Content="Serial Monitor"
+                        HorizontalAlignment="Stretch" />
+                <Button Name="PlotterModeButton"
+                        Grid.Column="1"
+                        Content="Plotter"
+                        HorizontalAlignment="Stretch" />
+                <Button Name="LogicAnalyzerModeButton"
+                        Grid.Column="2"
+                        Content="Logic Analyzer"
+                        HorizontalAlignment="Stretch" />
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="1">
+            <local:SessionControl x:Name="MainSessionControl" />
+
+            <local:SerialPlotterControl x:Name="MainPlotterControl"
+                                        IsVisible="False" />
+
+            <local:LogicAnalyzerControl x:Name="MainLogicAnalyzerControl"
+                                        IsVisible="False" />
+        </Grid>
+    </Grid>
 </Window>
