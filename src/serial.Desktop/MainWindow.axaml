@@ -3,7 +3,7 @@
         xmlns:local="clr-namespace:serial.Desktop"
         x:Class="serial.Desktop.MainWindow"
         x:DataType="local:MainWindow"
-        Title="Serial Monitor"
+        Title="logicom"
         Width="950"
         Height="600"
         MinWidth="950"

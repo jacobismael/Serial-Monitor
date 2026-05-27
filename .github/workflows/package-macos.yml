@@ -37,33 +37,33 @@ jobs:
 
       - name: Verify app bundle exists
         run: |
-          test -d "dist/Serial Monitor.app"
-          test -f "dist/Serial Monitor.app/Contents/MacOS/serial.Desktop"
+          test -d "dist/logicom.app"
+          test -f "dist/logicom.app/Contents/MacOS/serial.Desktop"
 
       - name: Ad-hoc sign app
         run: |
-          codesign --force --deep --sign - "dist/Serial Monitor.app"
-          codesign --verify --deep --strict --verbose=2 "dist/Serial Monitor.app"
+          codesign --force --deep --sign - "dist/logicom.app"
+          codesign --verify --deep --strict --verbose=2 "dist/logicom.app"
 
       - name: Create DMG
         run: |
           rm -rf "dist/dmg-staging"
           mkdir -p "dist/dmg-staging"
 
-          cp -R "dist/Serial Monitor.app" "dist/dmg-staging/"
+          cp -R "dist/logicom.app" "dist/dmg-staging/"
           ln -s /Applications "dist/dmg-staging/Applications"
 
           hdiutil create \
-            -volname "Serial Monitor" \
+            -volname "logicom" \
             -srcfolder "dist/dmg-staging" \
             -ov \
             -format UDZO \
-            "dist/Serial Monitor.dmg"
+            "dist/logicom.dmg"
 
       - name: Ad-hoc sign DMG
         run: |
-          codesign --force --sign - "dist/Serial Monitor.dmg"
-          codesign --verify --verbose=2 "dist/Serial Monitor.dmg"
+          codesign --force --sign - "dist/logicom.dmg"
+          codesign --verify --verbose=2 "dist/logicom.dmg"
 
       - name: Compute next release version
         id: version
@@ -86,14 +86,14 @@ jobs:
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Serial-Monitor-macOS-DMG-${{ steps.version.outputs.tag }}
-          path: "dist/Serial Monitor.dmg"
+          name: logicom-macOS-DMG-${{ steps.version.outputs.tag }}
+          path: "dist/logicom.dmg"
 
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release create "${{ steps.version.outputs.tag }}" \
-            "dist/Serial Monitor.dmg" \
-            --title "Serial Monitor ${{ steps.version.outputs.tag }}" \
+            "dist/logicom.dmg" \
+            --title "logicom ${{ steps.version.outputs.tag }}" \
             --notes "Automated macOS DMG build for ${{ steps.version.outputs.tag }}"

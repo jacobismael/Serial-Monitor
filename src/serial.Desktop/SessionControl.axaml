@@ -4,7 +4,7 @@
     <Grid Margin="20"
           RowDefinitions="Auto,Auto,*,Auto,Auto"
           RowSpacing="12">
-        <TextBlock Text="Serial Monitor"
+        <TextBlock Text="logicom"
                    Grid.Row="0"
                    FontSize="24"
                    FontWeight="Bold" />

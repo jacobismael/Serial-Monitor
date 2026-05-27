@@ -46,7 +46,7 @@ public partial class App : Application
         };
         NativeMenuItem aboutItem = new()
         {
-            Header = "About Serial Monitor..."
+            Header = "About logicom..."
         };
         settingsItem.Click += Settings_OnClick;
         aboutItem.Click += About_OnClick;

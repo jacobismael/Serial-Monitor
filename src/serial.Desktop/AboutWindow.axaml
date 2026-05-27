@@ -1,14 +1,14 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="serial.Desktop.AboutWindow"
-        Title="About Serial Monitor"
+        Title="About logicom"
         Width="420"
         Height="260"
         WindowStartupLocation="CenterOwner"
         CanResize="False">
 
     <StackPanel Margin="24" Spacing="14">
-        <TextBlock Text="Serial Monitor"
+        <TextBlock Text="logicom"
                    FontSize="28"
                    FontWeight="Bold" />
 

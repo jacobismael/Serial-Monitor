@@ -5,9 +5,9 @@ set -e
 # App settings
 # ------------------------------------------------------------
 
-APP_NAME="Serial Monitor"
+APP_NAME="logicom"
 EXE_NAME="serial.Desktop"
-BUNDLE_ID="com.jacob.serialmonitor"
+BUNDLE_ID="com.jacob.logicom"
 
 PROJECT="src/serial.Desktop/serial.Desktop.csproj"
 

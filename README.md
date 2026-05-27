@@ -1,4 +1,4 @@
-# Serial Monitor
+# logicom
 
 A simple C# / Avalonia UART serial monitor for macOS.
 
